@@ -55,23 +55,24 @@ architecture rtl of test_entity is
       );
   end component lcd_driver;
 
-  signal new_input_data : std_logic;
-  signal lcd_ready : std_logic := '0';
-  signal lcd_data_in : unsigned(7 downto 0) := (others  => '0');
-  signal lcd_addr_in : unsigned(15 downto 0) := (others => '0');
+  signal new_input_data        : std_logic;
+  signal lcd_ready             : std_logic := '0';
+  signal lcd_data_in           : unsigned(15 downto 0) := (others  => '0');
+  signal lcd_addr_in           : unsigned(7 downto 0)  := (others => '0');
   signal one_hz_counter_signal : unsigned(25 downto 0) := (others => '0');
-  signal lcd_init : std_logic;
-  signal pause : std_logic;
-  signal pwm : std_logic;
+  signal lcd_init              : std_logic;
+  signal pause                 : std_logic;
+  signal pwm                   : std_logic;
+  signal count_enable          : std_logic;
 
 begin
 
-  LCD_EN : lcd_driver
+  LCD_ENTITY : lcd_driver
   port map(
     I_RESET_N       => I_RESET_N,
     I_CLK_50MHZ     => I_CLK_50MHZ,
-    INPUT_ADDR      => lcd_addr_in,
-    INPUT_DATA      => lcd_data_in,
+    INPUT_ADDR      => std_logic_vector(lcd_addr_in),
+    INPUT_DATA      => std_logic_vector(lcd_data_in),
     SYS_PAUSE       => pause,
     NEW_INPUT       => new_input_data,
     PWM_GEN_MODE    => pwm,
