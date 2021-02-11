@@ -45,27 +45,34 @@ architecture rtl of lcd_driver is
 
     -- Signals for LCD display state machine
     type LCD_STATE is (
-        INIT,
+        INIT0,
+        INIT1,
+        INIT2,
+        INIT3,
+        INIT4,
+        INIT5,
+        INIT6,
+        INIT7,
         READY1,
         READY2,
         WRITE_LCD
     );
 
-    signal lcd_control_state : LCD_STATE := INIT;
+    signal lcd_control_state : LCD_STATE := INIT0;
 
     -- initialize states
-    type INIT_STATE is (
-      STEP0,
-      STEP1,
-      STEP2,
-      STEP3,
-      STEP4,
-      STEP5,
-      STEP6,
-      STEP7
-    );
-
-    signal initialization_state : INIT_STATE := STEP0;
+    -- type INIT_STATE is (
+    --   STEP0,
+    --   STEP1,
+    --   STEP2,
+    --   STEP3,
+    --   STEP4,
+    --   STEP5,
+    --   STEP6,
+    --   STEP7
+    -- );
+    --
+    -- signal initialization_state : INIT_STATE := STEP0;
 
     -- Signals for user output
     signal enable_counter    : unsigned(3 downto 0);
@@ -73,18 +80,12 @@ architecture rtl of lcd_driver is
     signal data_ascii_out   : std_logic_vector(27 downto 0);
     signal addr_ascii_out    : std_logic_vector(15 downto 0);
 
-    signal prev_data         : std_logic_vector(15 downto 0);
-    signal new_data          : std_logic_vector(15 downto 0);
-    signal prev_addr         : std_logic_vector(7 downto 0);
-    signal new_addr          : std_logic_vector(7 downto 0);
-
     signal sixteen_ms_count         : unsigned(19 downto 0);
     signal sixteen_ms_elapse        : std_logic := '0';
     signal five_ms_elapse           : std_logic := '0';
     signal one_hundred_micro_elapse : std_logic := '0';
     signal first_three              : std_logic := '0';
     signal forty_four_micro_elapse  : std_logic := '0';
-    signal first_of_four            : unsigned(2 downto 0) := "000";
 
     begin
 
@@ -108,46 +109,42 @@ architecture rtl of lcd_driver is
       DISPLAY_STATE : process(I_CLK_50MHZ, I_RESET_N, SYS_PAUSE, PWM_GEN_MODE)
         begin
           if (I_RESET_N = '0') then
-            lcd_control_state <= INIT;
+            lcd_control_state <= INIT0;
           elsif (rising_edge(I_CLK_50MHZ)) then
             case( lcd_control_state ) is
-              when INIT =>
-                case( initialization_state ) is
-                  when STEP0 =>
+              when INIT0 =>
                     if (sixteen_ms_elapse = '1') then
-                      initialization_state <= STEP1;
+                      lcd_control_state <= INIT1;
                     end if;
-                  when STEP1 =>
+                  when INIT1 =>
                     if (five_ms_elapse = '1') then
-                      initialization_state <= STEP2;
+                      lcd_control_state <= INIT2;
                     end if;
-                  when STEP2 =>
+                  when INIT2 =>
                     if (one_hundred_micro_elapse = '1') then
-                      initialization_state <= STEP3;
+                      lcd_control_state <= INIT3;
                     end if;
-                  when STEP3 =>
+                  when INIT3 =>
                     if (forty_four_micro_elapse = '1') then
-                      initialization_state <= STEP4;
+                      lcd_control_state <= INIT4;
                     end if;
-                  when STEP4 =>
+                  when INIT4 =>
                     if (forty_four_micro_elapse = '1') then
-                      initialization_state <= STEP5;
+                      lcd_control_state <= INIT5;
                     end if;
-                  when STEP5 =>
+                  when INIT5 =>
                     if (forty_four_micro_elapse = '1') then
-                      initialization_state <= STEP6;
+                      lcd_control_state <= INIT6;
                     end if;
-                  when STEP6 =>
+                  when INIT6 =>
                     if (forty_four_micro_elapse = '1') then
-                      initialization_state <= STEP7;
+                      lcd_control_state <= INIT7;
                     end if;
-                  when STEP7 =>
+                  when INIT7 =>
                     if (forty_four_micro_elapse = '1') then
                       lcd_control_state <= READY1;
                     end if;
-                end case;
-
-              when READY1 =>
+             when READY1 =>
                 if (lcd_enable = '1') then
                   lcd_control_state <= WRITE_LCD;
                 end if;
@@ -178,27 +175,29 @@ architecture rtl of lcd_driver is
             sixteen_ms_count        <= sixteen_ms_count + 1;
             forty_four_micro_elapse <= '0';
 
-            if (sixteen_ms_count = "11000011010100000000" and initialization_state = STEP0) then
+            if (sixteen_ms_count = "11000011010100000000"
+                and lcd_control_state = INIT0) then
               sixteen_ms_elapse <= '1';
               sixteen_ms_count <= (others => '0');
 
-            elsif (sixteen_ms_count = "111101000010010000" and initialization_state = STEP1) then
+            elsif (sixteen_ms_count = "111101000010010000"
+                   and lcd_control_state = INIT1) then
               five_ms_elapse <= '1';
               sixteen_ms_count <= (others => '0');
 
-            elsif (sixteen_ms_count = "1001110111010" and initialization_state = STEP2) then
+            elsif (sixteen_ms_count = "1001110111010"
+                   and lcd_control_state = INIT2) then
                 one_hundred_micro_elapse <= '1';
                 sixteen_ms_count <= (others => '0');
 
             elsif (sixteen_ms_count = "100010011000"
-                   and (initialization_state = STEP3
-                        or initialization_state = STEP4
-                        or initialization_state = STEP5
-                        or initialization_state = STEP6
-                        or initialization_state = STEP7) ) then
+                   and (lcd_control_state = INIT3
+                        or lcd_control_state = INIT4
+                        or lcd_control_state = INIT5
+                        or lcd_control_state = INIT6
+                        or lcd_control_state = INIT7) ) then
               forty_four_micro_elapse <= '1';
               sixteen_ms_count <= (others => '0');
-
             end if;
           end if;
       end process INIT_COUNTER;
@@ -211,47 +210,45 @@ architecture rtl of lcd_driver is
           elsif (rising_edge(I_CLK_50MHZ)) then
             LCD_EN <= lcd_enable;
             case( lcd_control_state ) is
-              when INIT =>
-                case( initialization_state ) is
-                  when STEP0 =>
+              when INIT0 =>
                     -- waiting for VCC to rise
-                  when STEP1 =>
+                  when INIT1 =>
                     if (lcd_enable = '1') then
                       LCD_RS   <= '0';  -- set RS to 0
                       LCD_RW   <= '0';  -- set RW to 0
                       LCD_DATA <= "00110000";
                     end if;
-                  when STEP2 =>
+                  when INIT2 =>
                     if (lcd_enable = '1') then
                       LCD_RS   <= '0';  -- set RS to 0
                       LCD_RW   <= '0';  -- set RW to 0
                       LCD_DATA <= "00110000";
                     end if;
-                  when STEP3 =>
+                  when INIT3 =>
                     if (lcd_enable = '1') then
                       LCD_RS   <= '0';  -- set RS to 0
                       LCD_RW   <= '0';  -- set RW to 0
                       LCD_DATA <= "00110000";
                     end if;
-                  when STEP4 =>
+                  when INIT4 =>
                     if (lcd_enable = '1') then
                       LCD_RS   <= '0';  -- set RS to 0
                       LCD_RW   <= '0';  -- set RW to 0
                       LCD_DATA <= "00111000";
                     end if;
-                  when STEP5 =>
+                  when INIT5 =>
                     if (lcd_enable = '1') then
                       LCD_RS   <= '0';  -- set RS to 0
                       LCD_RW   <= '0';  -- set RW to 0
                       LCD_DATA <= "00001111";
                     end if;
-                  when STEP6 =>
+                  when INIT6 =>
                     if (lcd_enable = '1') then
                       LCD_RS   <= '0';  -- set RS to 0
                       LCD_RW   <= '0';  -- set RW to 0
                       LCD_DATA <= "00000001";
                     end if;
-                  when STEP7 =>
+                  when INIT7 =>
                     if (lcd_enable = '1') then
                       LCD_INITIALIZED <= '1';
                       LCD_RS   <= '0';  -- set RS to 0
@@ -259,7 +256,6 @@ architecture rtl of lcd_driver is
                       LCD_DATA <= "00000110";
 
                     end if;
-                end case;
 
               when READY1 =>
                 if (lcd_enable = '1') then
