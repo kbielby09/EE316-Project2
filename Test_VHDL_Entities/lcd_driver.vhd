@@ -81,14 +81,17 @@ architecture rtl of lcd_driver is
               lcd_enable <= '0';
               previous_enable_value <= '0';
             elsif (rising_edge(I_CLK_50MHZ)) then
+              previous_enable_value <= lcd_enable;
               if (counter_paused = '0' and lcd_initialized = '1') then
                 enable_counter <= enable_counter + 1;
                 lcd_enable <= '1';
-                previous_enable_value <= lcd_enable;
                 -- Check for 230ns of elapsed time
                 if (enable_counter = "1100") then
                   lcd_enable <= '0';
                 end if;
+              elsif (counter_paused = '1') then
+                lcd_enable <= '0';
+                previous_enable_value <= '0';
               end if;
             end if;
       end process EN_COUNTER;
