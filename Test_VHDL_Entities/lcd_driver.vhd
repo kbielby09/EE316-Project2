@@ -21,7 +21,7 @@ entity lcd_driver is
         NEW_DATA   : in std_logic;
 
         -- Control Inputs
-        READY       : out std_logic;
+        READY       : out std_logic := '0';
 
         -- Outputs to LCD display
         LCD_RW      : out std_logic;
@@ -71,6 +71,10 @@ architecture rtl of lcd_driver is
 
     signal lcd_initialized          : std_logic := '0';
 
+    -- TODO remove after testing
+    signal temp_new_data            : std_logic := '1';
+    signal step_six  : std_logic := '0';
+
     begin
 
       -- Process to count for approximately 230ns
@@ -82,7 +86,7 @@ architecture rtl of lcd_driver is
               previous_enable_value <= '0';
             elsif (rising_edge(I_CLK_50MHZ)) then
               previous_enable_value <= lcd_enable;
-              if (counter_paused = '0' and lcd_initialized = '1') then
+              if (counter_paused = '0') then
                 enable_counter <= enable_counter + 1;
                 lcd_enable <= '1';
                 -- Check for 230ns of elapsed time
@@ -95,70 +99,6 @@ architecture rtl of lcd_driver is
               end if;
             end if;
       end process EN_COUNTER;
-
-      -- Process to change the state of the LCD
-      DISPLAY_STATE : process(I_CLK_50MHZ, I_RESET_N)
-        begin
-          if (I_RESET_N = '0') then
-            lcd_control_state <= INIT0;
-            lcd_initialized   <= '0';
-          elsif (rising_edge(I_CLK_50MHZ)) then
-            case( lcd_control_state ) is
-              when INIT0 =>
-                if (sixteen_ms_elapse = '1') then
-                  lcd_control_state <= INIT1;
-                end if;
-              when INIT1 =>
-                if (five_ms_elapse = '1') then
-                  lcd_control_state <= INIT2;
-                end if;
-              when INIT2 =>
-                if (one_hundred_micro_elapse = '1') then
-                  lcd_control_state <= INIT3;
-                end if;
-              when INIT3 =>
-                if (forty_four_micro_elapse = '1') then
-                  lcd_control_state <= INIT4;
-                end if;
-              when INIT4 =>
-                if (forty_four_micro_elapse = '1') then
-                  lcd_control_state <= INIT5;
-                end if;
-              when INIT5 =>
-                if (forty_four_micro_elapse = '1') then
-                  lcd_control_state <= INIT6;
-                end if;
-              when INIT6 =>
-                if (forty_four_micro_elapse = '1') then
-                  lcd_control_state <= INIT7;
-                end if;
-              when INIT7 =>
-                if (forty_four_micro_elapse = '1') then
-                  lcd_control_state <= READY1;
-                  lcd_initialized   <= '1';
-                end if;
-
-             when READY1 =>
-                if (lcd_enable = '1' and previous_enable_value = '0') then
-                  lcd_control_state <= WRITE_LCD;
-                end if;
-
-            when WRITE_LCD =>
-              if (lcd_enable = '0' and previous_enable_value = '1') then
-                lcd_control_state <= WAITING;
-              end if;
-
-            when WAITING =>
-              if (NEW_DATA = '1'
-                  and lcd_enable = '0'
-                  and previous_enable_value = '0'
-                  and enable_counter = "1111") then
-                lcd_control_state <= READY1;
-              end if;
-
-            end case;
-          end if;
-      end process;
 
       -- Process to count for 16 ms for initialization Process
       INIT_COUNTER : process(I_CLK_50MHZ, I_RESET_N)
@@ -201,6 +141,77 @@ architecture rtl of lcd_driver is
           end if;
       end process INIT_COUNTER;
 
+      -- Process to change the state of the LCD
+      DISPLAY_STATE : process(I_CLK_50MHZ, I_RESET_N)
+        begin
+          if (I_RESET_N = '0') then
+            lcd_control_state <= INIT0;
+            lcd_initialized   <= '0';
+          elsif (rising_edge(I_CLK_50MHZ)) then
+            case( lcd_control_state ) is
+              when INIT0 =>
+                if (sixteen_ms_elapse = '1') then
+                  lcd_control_state <= INIT1;
+                end if;
+
+              when INIT1 =>
+                if (five_ms_elapse = '1') then
+                  lcd_control_state <= INIT2;
+                end if;
+
+              when INIT2 =>
+                if (one_hundred_micro_elapse = '1') then
+                  lcd_control_state <= INIT3;
+                end if;
+
+              when INIT3 =>
+                if (forty_four_micro_elapse = '1') then
+                  lcd_control_state <= INIT4;
+                end if;
+
+              when INIT4 =>
+                if (forty_four_micro_elapse = '1') then
+                  lcd_control_state <= INIT5;
+                end if;
+
+              when INIT5 =>
+                if (forty_four_micro_elapse = '1') then
+                  lcd_control_state <= INIT6;
+                end if;
+
+              when INIT6 =>
+                if (forty_four_micro_elapse = '1') then
+                  lcd_control_state <= INIT7;
+                end if;
+
+              when INIT7 =>
+                if (forty_four_micro_elapse = '1') then
+                  lcd_control_state <= READY1;
+                  lcd_initialized   <= '1';
+                end if;
+
+             when READY1 =>
+                if (lcd_enable = '1' and previous_enable_value = '0') then
+                  lcd_control_state <= WRITE_LCD;
+                end if;
+
+            when WRITE_LCD =>
+              if (lcd_enable = '0' and previous_enable_value = '1') then
+                lcd_control_state <= WAITING;
+              end if;
+
+            when WAITING =>
+              if (NEW_DATA = '1'
+              -- if (temp_new_data  = '1'
+                  and lcd_enable = '0'
+                  and previous_enable_value = '0'
+                  and enable_counter = "1111") then
+                lcd_control_state <= READY1;
+              end if;
+            end case;
+          end if;
+      end process;
+
       -- Process to display data on lcd depending on mode of operation
       DISPLAY_VALUE : process(I_CLK_50MHZ, I_RESET_N)
         begin
@@ -212,52 +223,44 @@ architecture rtl of lcd_driver is
               when INIT0 =>
                     -- waiting for VCC to rise
                   when INIT1 =>
-                    if (lcd_enable = '1') then
                       LCD_RS   <= '0';  -- set RS to 0
                       LCD_RW   <= '0';  -- set RW to 0
                       LCD_DATA <= "00110000";
-                    end if;
+
                   when INIT2 =>
-                    if (lcd_enable = '1') then
                       LCD_RS   <= '0';  -- set RS to 0
                       LCD_RW   <= '0';  -- set RW to 0
                       LCD_DATA <= "00110000";
-                    end if;
+
                   when INIT3 =>
-                    if (lcd_enable = '1') then
                       LCD_RS   <= '0';  -- set RS to 0
                       LCD_RW   <= '0';  -- set RW to 0
                       LCD_DATA <= "00110000";
-                    end if;
+
                   when INIT4 =>
-                    if (lcd_enable = '1') then
                       LCD_RS   <= '0';  -- set RS to 0
                       LCD_RW   <= '0';  -- set RW to 0
                       LCD_DATA <= "00111000";
-                    end if;
+
                   when INIT5 =>
-                    if (lcd_enable = '1') then
                       LCD_RS   <= '0';  -- set RS to 0
                       LCD_RW   <= '0';  -- set RW to 0
                       LCD_DATA <= "00001111";
-                    end if;
+
                   when INIT6 =>
-                    if (lcd_enable = '1') then
                       LCD_RS   <= '0';  -- set RS to 0
                       LCD_RW   <= '0';  -- set RW to 0
                       LCD_DATA <= "00000001";
-                    end if;
+
                   when INIT7 =>
-                    if (lcd_enable = '1') then
                       LCD_RS   <= '0';  -- set RS to 0
                       LCD_RW   <= '0';  -- set RW to 0
                       LCD_DATA <= "00000110";
-                    end if;
 
               when READY1 =>
-                READY   <= '1';
-                LCD_RS   <= '1';         -- set RS to 0
-                LCD_RW   <= '0';         -- set RW to 0
+                READY          <= '1';
+                LCD_RS         <= '1';         -- set RS to 0
+                LCD_RW         <= '0';         -- set RW to 0
                 counter_paused <= '0';
 
               when WRITE_LCD =>
@@ -266,6 +269,7 @@ architecture rtl of lcd_driver is
                 end if;
 
              when WAITING =>
+               temp_new_data <= '0';
                counter_paused <= '1';
 
             end case;
