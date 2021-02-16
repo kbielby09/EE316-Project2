@@ -132,23 +132,32 @@ begin
       pwm_count <= (others => '0');
       pwm_sig_val <= '0';
     elsif (rising_edge(I_CLK_50MHZ)) then
-
       if (PWM_MODE = '1') then
-        -- case(frequency_state) is
-        --   when SIXTY_HZ =>
-        --   when ONE_HUNDRED_TWENTY_HZ =>
-        --   when ONE_KHZ =>
-        --
-        -- end case;
-
         pwm_count <= pwm_count + 1;
-
-        if (pwm_count = unsigned(rom_data)) then
-          pwm_sig_val <= '1';
-        elsif (pwm_count = "1111111111111111") then
-          pwm_count <= (others => '0');  -- Reset counter
-          pwm_sig_val <= '0';
-        end if;
+        case(frequency_state) is
+          when SIXTY_HZ =>
+            if (pwm_count(9 downto 0) = unsigned(rom_data(9 downto 0))) then
+              pwm_sig_val <= '1';
+            elsif (pwm_count(9 downto 0) = "1111111111") then
+              pwm_count <= (others => '0');  -- Reset counter
+              pwm_sig_val <= '0';
+            end if;
+          when ONE_HUNDRED_TWENTY_HZ =>
+            if (pwm_count(8 downto 0) = unsigned(rom_data(8 downto 0))) then
+              pwm_sig_val <= '1';
+            elsif (pwm_count(8 downto 0) = "1111111111111111") then
+              pwm_count <= (others => '0');  -- Reset counter
+              pwm_sig_val <= '0';
+            end if;
+          when ONE_KHZ =>
+            -- TODO determine number of bits used and how many samples
+            -- if (pwm_count = unsigned(rom_data)) then
+            --   pwm_sig_val <= '1';
+            -- elsif (pwm_count = "1111111111111111") then
+            --   pwm_count <= (others => '0');  -- Reset counter
+            --   pwm_sig_val <= '0';
+            -- end if;
+        end case;
       end if;
     end if;
   end process PWM_COUNTER;
