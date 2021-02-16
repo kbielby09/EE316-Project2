@@ -118,6 +118,9 @@ begin
             i_rom_addr <= i_rom_addr + 1;
           end if;
         when ONE_HUNDRED_TWENTY_HZ =>
+          if (one_twenty_hz_counter = "11001011100") then
+            i_rom_addr <= i_rom_addr + 1;
+          end if;
         when ONE_KHZ =>
       end case;
     end if;
@@ -127,15 +130,24 @@ begin
   begin
     if (I_RESET_N = '0') then
       pwm_count <= (others => '0');
+      pwm_sig_val <= '0';
     elsif (rising_edge(I_CLK_50MHZ)) then
 
       if (PWM_MODE = '1') then
+        -- case(frequency_state) is
+        --   when SIXTY_HZ =>
+        --   when ONE_HUNDRED_TWENTY_HZ =>
+        --   when ONE_KHZ =>
+        --
+        -- end case;
+
         pwm_count <= pwm_count + 1;
 
-        if (pwm_count = unsigned(rom_data)) then --I_ROM_DATA) then
+        if (pwm_count = unsigned(rom_data)) then
           pwm_sig_val <= '1';
         elsif (pwm_count = "1111111111111111") then
           pwm_count <= (others => '0');  -- Reset counter
+          pwm_sig_val <= '0';
         end if;
       end if;
     end if;
