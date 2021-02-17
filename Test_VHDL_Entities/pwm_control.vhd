@@ -150,13 +150,12 @@ begin
               pwm_sig_val <= '0';
             end if;
           when ONE_KHZ =>
-            -- TODO determine number of bits used and how many samples
-            -- if (pwm_count = unsigned(rom_data)) then
-            --   pwm_sig_val <= '1';
-            -- elsif (pwm_count = "1111111111111111") then
-            --   pwm_count <= (others => '0');  -- Reset counter
-            --   pwm_sig_val <= '0';
-            -- end if;
+            if (pwm_count(5 downto 0) = unsigned(rom_data(5 downto 0))) then
+              pwm_sig_val <= '1';
+            elsif (pwm_count(5 downto 0) = "111111") then
+              pwm_count <= (others => '0');  -- Reset counter
+              pwm_sig_val <= '0';
+            end if;
         end case;
       end if;
     end if;
