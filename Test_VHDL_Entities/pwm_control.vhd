@@ -94,6 +94,7 @@ architecture rtl of pwm_control is
   signal pwm_count : unsigned(15 downto 0);
   signal pwm_sig_val : std_logic := '0';
   signal PWM_MODE : std_logic := '1'; -- TODO remove and implement with signal
+  -- signal null_addr : std_logic_vector(17 downto 0);
 
 begin
 
@@ -109,41 +110,22 @@ begin
   -- port map
   -- (
   --   -- Clocks & Resets
-  --   I_CLK_50MHZ     : in std_logic;                    -- Input clock signal
-  --
-  --   I_SYSTEM_RST_N  : in std_logic;                    -- Input signal to reset SRAM data form ROM
-  --
-  --   COUNT_EN : in std_logic;
-  --
-  --   RW         : in std_logic;
-  --
-  --   DIO : inout std_logic_vector(15 downto 0);
-  --
-  --   CE_N : out std_logic;
-  --
-  --   -- Read/Write enable signals
-  --   WE_N    : out std_logic;     -- signal for writing to SRAM
-  --   OE    : out std_logic;     -- Input signal for enabling output
-  --
-  --   UB    : out std_logic;
-  --   LB    : out std_logic;
-  --
-  --   -- digit selection input
-  --   IN_DATA      : in std_logic_vector(15 downto 0);    -- gives the values of the digits to be illuminated
-  --                                                             -- bits 0-3: digit 1; bits 4-7: digit 2, bits 8-11: digit 3
-  --                                                             -- bits 12-15: digit 4
-  --
-  --   IN_DATA_ADDR : in std_logic_vector(17 downto 0);
-  --
-  --
-  --   -- seven segment display digit selection port
-  --   OUT_DATA    : out std_logic_vector(15 downto 0);       -- if bit is 1 then digit is activated and if bit is 0 digit is inactive
-  --                                                             -- bits 0-3: digit 1; bits 3-7: digit 2, bit 7: digit 4
-  --
-  --   OUT_DATA_ADR : out std_logic_vector(17 downto 0)
+  --   I_CLK_50MHZ     : in std_logic;                    -- Input
+  --   I_SYSTEM_RST_N  : in std_logic;                    -- Input signal to reset SRAM data
+  --   COUNT_EN : in
+  --   RW         : in
+  --   DIO : inout std_logic_vector(15 downto
+  --   CE_N : out
+  --   WE_N    : out std_logic;     -- signal for writing
+  --   OE    : out std_logic;     -- Input signal for
+  --   UB    : out
+  --   LB    : out
+  --   IN_DATA      : in std_logic_vector(15 downto 0);    -- gives the values of the digits to
+  --   IN_DATA_ADDR : in std_logic_vector(17 downto
+  --   OUT_DATA  => out_data; -- Rename this
+  --   OUT_DATA_ADR => null_addr
   --
   --   );
-  -- end SRAM_controller;
 
   FREQ_CHANGE : process(I_CLK_50MHZ, I_RESET_N)
   begin
