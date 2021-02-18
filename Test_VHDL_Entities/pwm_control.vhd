@@ -156,5 +156,5 @@ begin
     end if;
   end process PWM_COUNTER;
 
-  PWM_OUT <= pwm_sig_val; -- TODO not sure about this
+  PWM_OUT <= pwm_sig_val; 
 end architecture;
