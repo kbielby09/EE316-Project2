@@ -30,19 +30,6 @@ architecture rtl of pwm_control is
   	);
   end component ROM;
 
-  -- component pwmGen is
-  --   port (
-  --     -- Clock and reset Signals
-  --     I_RESET_N   : in std_logic;
-  --     I_CLK_50MHZ : in std_logic;
-  --
-  --     PWM_MODE    : in std_logic;
-  --     I_ROM_DATA  : in std_logic_vector(15 downto 0);
-  --
-  --     PWM_OUT     : out std_logic
-  --   );
-  -- end component pwmGen;
-
   -- Signals to
   type FREQ_STATE is
   (
@@ -51,7 +38,6 @@ architecture rtl of pwm_control is
     ONE_KHZ
   );
 
-  -- signal frequency_state : FREQ_STATE := ONE_HUNDRED_TWENTY_HZ;
   signal frequency_state : FREQ_STATE := SIXTY_HZ;
 
   -- Signals to get rom data
@@ -67,18 +53,9 @@ architecture rtl of pwm_control is
 
   signal pwm_count : unsigned(15 downto 0);
   signal pwm_sig_val : std_logic := '0';
-  signal PWM_MODE : std_logic := '1'; -- TODO remove and implement
+  signal PWM_MODE : std_logic := '1'; -- TODO remove and implement with signal
 
 begin
-
-  -- PWM : pwmGen
-  -- port map(
-  --   I_RESET_N   => I_RESET_N,
-  --   I_CLK_50MHZ => I_CLK_50MHZ,
-  --   PWM_MODE    => PWM_MODE,
-  --   I_ROM_DATA  => rom_data,
-  --   PWM_OUT     => PWM_OUT
-  -- );
 
   ROM_INST : ROM
   port map
@@ -96,11 +73,12 @@ begin
       if (FREQ_SEL = '0') then
         case( frequency_state ) is
           when SIXTY_HZ =>
-            -- frequency_state <= ONE_HUNDRED_TWENTY_HZ;
+            frequency_state <= ONE_HUNDRED_TWENTY_HZ;
           when ONE_HUNDRED_TWENTY_HZ =>
-            -- frequency_state <= ONE_KHZ;
-          when ONE_KHZ =>
+            frequency_state <= ONE_KHZ;
             -- frequency_state <= SIXTY_HZ;
+          when ONE_KHZ =>
+            frequency_state <= SIXTY_HZ;
         end case;
       end if;
     end if;
@@ -114,6 +92,7 @@ begin
       i_rom_addr <= (others => '0');
     elsif (rising_edge(I_CLK_50MHZ)) then
       sixty_hz_counter <= sixty_hz_counter + 1;
+      one_twenty_hz_counter <= one_twenty_hz_counter + 1;
       addr_change <= '0';
       case(frequency_state) is
         when SIXTY_HZ =>
@@ -153,7 +132,6 @@ begin
         case(frequency_state) is
           when SIXTY_HZ =>
             if (pwm_count(10 downto 0) = unsigned(rom_data(15 downto 5))) then
-                -- and count_once = '0') then
               pwm_sig_val <= '1';
             elsif (pwm_count(10 downto 0) = "11111111111" or addr_change = '1') then
               pwm_count <= (others => '0');  -- Reset counter
@@ -161,18 +139,12 @@ begin
 
             end if;
           when ONE_HUNDRED_TWENTY_HZ =>
-            -- if (pwm_count = unsigned(rom_data)) then
-            --   pwm_sig_val <= '1';
-            -- elsif (pwm_count = "1111111111111111" or addr_change = '1') then
-            --   pwm_count <= (others => '0');  -- Reset counter
-            --   pwm_sig_val <= '0';
-            -- end if;
-            -- if (pwm_count(8 downto 0) = unsigned(rom_data(8 downto 0))) then
-            --   pwm_sig_val <= '1';
-            -- elsif (pwm_count(8 downto 0) = "1111111111111111") then
-            --   pwm_count <= (others => '0');  -- Reset counter
-            --   pwm_sig_val <= '0';
-            -- end if;
+            if (pwm_count(8 downto 0) = unsigned(rom_data(15 downto 7))) then
+              pwm_sig_val <= '1';
+            elsif (pwm_count(8 downto 0) = "111111111" or addr_change = '1') then
+              pwm_count <= (others => '0');  -- Reset counter
+              pwm_sig_val <= '0';
+            end if;
           when ONE_KHZ =>
             -- if (pwm_count(5 downto 0) = unsigned(rom_data(5 downto 0))) then
             --   pwm_sig_val <= '1';
