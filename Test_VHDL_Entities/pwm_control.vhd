@@ -51,16 +51,19 @@ architecture rtl of pwm_control is
     ONE_KHZ
   );
 
-  signal frequency_state : FREQ_STATE;
+  -- signal frequency_state : FREQ_STATE := ONE_HUNDRED_TWENTY_HZ;
+  signal frequency_state : FREQ_STATE := SIXTY_HZ;
 
   -- Signals to get rom data
   signal i_rom_addr : unsigned(7 downto 0) := (others => '0');
   signal rom_data   : std_logic_vector(15 downto 0);
+  signal addr_change : std_logic := '0';
 
   -- Signals for frequency counter
   signal sixty_hz_counter : unsigned(11 downto 0);
   signal one_twenty_hz_counter : unsigned(21 downto 0);
   signal one_khz_counter : unsigned(21 downto 0);
+  signal count_once : std_logic := '0';
 
   signal pwm_count : unsigned(15 downto 0);
   signal pwm_sig_val : std_logic := '0';
@@ -93,11 +96,11 @@ begin
       if (FREQ_SEL = '0') then
         case( frequency_state ) is
           when SIXTY_HZ =>
-            frequency_state <= ONE_HUNDRED_TWENTY_HZ;
+            -- frequency_state <= ONE_HUNDRED_TWENTY_HZ;
           when ONE_HUNDRED_TWENTY_HZ =>
-            frequency_state <= ONE_KHZ;
+            -- frequency_state <= ONE_KHZ;
           when ONE_KHZ =>
-            frequency_state <= SIXTY_HZ;
+            -- frequency_state <= SIXTY_HZ;
         end case;
       end if;
     end if;
@@ -111,17 +114,30 @@ begin
       i_rom_addr <= (others => '0');
     elsif (rising_edge(I_CLK_50MHZ)) then
       sixty_hz_counter <= sixty_hz_counter + 1;
-
+      addr_change <= '0';
       case(frequency_state) is
         when SIXTY_HZ =>
-          if (sixty_hz_counter = "110010111000") then
-            i_rom_addr <= i_rom_addr + 1;
+          if (pwm_count(10 downto 0) = "11111111111") then
+            count_once <= '1';
           end if;
-        when ONE_HUNDRED_TWENTY_HZ =>
-          if (one_twenty_hz_counter = "11001011100") then
+
+          if (sixty_hz_counter = "110010110111") then
             i_rom_addr <= i_rom_addr + 1;
+            addr_change <= '1';
+            count_once <= '0';
+            sixty_hz_counter <= (others => '0');
+          end if;
+
+        when ONE_HUNDRED_TWENTY_HZ =>
+          if (one_twenty_hz_counter = "110010110111") then--"11001011100") then
+          -- if (one_twenty_hz_counter =‬ "110010110111") then
+            i_rom_addr <= i_rom_addr + 2;
+            addr_change <= '1';
+            count_once <= '0';
+            one_twenty_hz_counter <= (others => '0');
           end if;
         when ONE_KHZ =>
+          -- TODO add counter for 1KHz
       end case;
     end if;
   end process FREQ_COUNTER;
@@ -136,26 +152,34 @@ begin
         pwm_count <= pwm_count + 1;
         case(frequency_state) is
           when SIXTY_HZ =>
-            if (pwm_count(9 downto 0) = unsigned(rom_data(9 downto 0))) then
+            if (pwm_count(10 downto 0) = unsigned(rom_data(15 downto 5))) then
+                -- and count_once = '0') then
               pwm_sig_val <= '1';
-            elsif (pwm_count(9 downto 0) = "1111111111") then
+            elsif (pwm_count(10 downto 0) = "11111111111" )then --or addr_change = '1') then
               pwm_count <= (others => '0');  -- Reset counter
               pwm_sig_val <= '0';
+
             end if;
           when ONE_HUNDRED_TWENTY_HZ =>
-            if (pwm_count(8 downto 0) = unsigned(rom_data(8 downto 0))) then
-              pwm_sig_val <= '1';
-            elsif (pwm_count(8 downto 0) = "1111111111111111") then
-              pwm_count <= (others => '0');  -- Reset counter
-              pwm_sig_val <= '0';
-            end if;
+            -- if (pwm_count = unsigned(rom_data)) then
+            --   pwm_sig_val <= '1';
+            -- elsif (pwm_count = "1111111111111111" or addr_change = '1') then
+            --   pwm_count <= (others => '0');  -- Reset counter
+            --   pwm_sig_val <= '0';
+            -- end if;
+            -- if (pwm_count(8 downto 0) = unsigned(rom_data(8 downto 0))) then
+            --   pwm_sig_val <= '1';
+            -- elsif (pwm_count(8 downto 0) = "1111111111111111") then
+            --   pwm_count <= (others => '0');  -- Reset counter
+            --   pwm_sig_val <= '0';
+            -- end if;
           when ONE_KHZ =>
-            if (pwm_count(5 downto 0) = unsigned(rom_data(5 downto 0))) then
-              pwm_sig_val <= '1';
-            elsif (pwm_count(5 downto 0) = "111111") then
-              pwm_count <= (others => '0');  -- Reset counter
-              pwm_sig_val <= '0';
-            end if;
+            -- if (pwm_count(5 downto 0) = unsigned(rom_data(5 downto 0))) then
+            --   pwm_sig_val <= '1';
+            -- elsif (pwm_count(5 downto 0) = "111111") then
+            --   pwm_count <= (others => '0');  -- Reset counter
+            --   pwm_sig_val <= '0';
+            -- end if;
         end case;
       end if;
     end if;
