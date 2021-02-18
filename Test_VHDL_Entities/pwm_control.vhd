@@ -143,7 +143,7 @@ begin
             elsif (pwm_count(8 downto 0) = "111111111" or addr_change = '1') then
               pwm_count <= (others => '0');  -- Reset counter
               pwm_sig_val <= '0';
-            end if;
+            end if; 
           when ONE_KHZ =>
             if (pwm_count(5 downto 0) = unsigned(rom_data(15 downto 10))) then
               pwm_sig_val <= '1';
@@ -156,5 +156,5 @@ begin
     end if;
   end process PWM_COUNTER;
 
-  PWM_OUT <= pwm_sig_val; 
+  PWM_OUT <= pwm_sig_val;
 end architecture;
