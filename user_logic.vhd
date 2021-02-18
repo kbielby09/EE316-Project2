@@ -7,9 +7,9 @@ port( clk : 	in std_logic;
 			reset_n: out std_logic;
 			i2c_ena: out std_logic;
 			i2c_addr: out std_logic_vector(6 downto 0);
-			
+
 			i2c_rw:	out std_logic;
-			i2c_data_wr: out td_logic_vector(7 downto 0);
+			i2c_data_wr: out std_logic_vector(7 downto 0);
 			data_rd: out std_logic_vector(7 downto 0);
 			ack_error: buffer std_logic;
 			busy: out std_logic);
@@ -26,7 +26,7 @@ signal byteSel : integer := 0;
 
 begin
 process(clk)
-begin 
+begin
 if(clk'EVENT and clk = '1') then
 	case state is
 		when start =>
@@ -45,11 +45,11 @@ if(clk'EVENT and clk = '1') then
 			end if;
 		when write_data => --WORKING ON THIS NOW
 			if byteSel /= 12 then
-				
-			else 
+
+			else
       end if;
     when repeat => --WORKING ON THIS NOW
-				 
+
 		end case;
 end if;
 end process;
