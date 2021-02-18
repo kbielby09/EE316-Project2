@@ -129,9 +129,9 @@ begin
           end if;
 
         when ONE_HUNDRED_TWENTY_HZ =>
-          if (one_twenty_hz_counter = "110010110111") then--"11001011100") then
+          if (one_twenty_hz_counter = "11001011100") then
           -- if (one_twenty_hz_counter =‬ "110010110111") then
-            i_rom_addr <= i_rom_addr + 2;
+            i_rom_addr <= i_rom_addr + 1;
             addr_change <= '1';
             count_once <= '0';
             one_twenty_hz_counter <= (others => '0');
@@ -155,7 +155,7 @@ begin
             if (pwm_count(10 downto 0) = unsigned(rom_data(15 downto 5))) then
                 -- and count_once = '0') then
               pwm_sig_val <= '1';
-            elsif (pwm_count(10 downto 0) = "11111111111" )then --or addr_change = '1') then
+            elsif (pwm_count(10 downto 0) = "11111111111" or addr_change = '1') then
               pwm_count <= (others => '0');  -- Reset counter
               pwm_sig_val <= '0';
 
