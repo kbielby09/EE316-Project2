@@ -8,19 +8,6 @@ entity top_entity is
         I_RESET_N : in std_logic;
         I_CLK_50MHZ : in std_logic;
 
-        -- Keypad inputs
-        I_KEYPAD_ROW_1  : in  std_logic;
-        I_KEYPAD_ROW_2  : in  std_logic;
-        I_KEYPAD_ROW_3  : in  std_logic;
-        I_KEYPAD_ROW_4  : in  std_logic;
-        I_KEYPAD_ROW_5  : in  std_logic;
-
-        -- Keypad outputs
-        O_KEYPAD_COL_1  : out std_logic;
-        O_KEYPAD_COL_2  : out std_logic;
-        O_KEYPAD_COL_3  : out std_logic;
-        O_KEYPAD_COL_4  : out std_logic;
-
         -- hex display outputs
         O_DATA_ADDR	      : out Std_logic_Vector(13 downto 0);
         O_HEX_N             : out Std_logic_Vector(27 downto 0)
