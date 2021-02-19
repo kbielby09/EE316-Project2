@@ -232,6 +232,16 @@ architecture rtl of top_entity is
 
  end process ONE_HZ_CLOCK;
 
+ -- TODO add functionality for LCD display data
+ DISPLAY_LCD : process(I_CLK_50MHZ, I_RESET_N)
+     begin
+        if (I_RESET_N = '1') then
+            -- Reset signal and LCD display
+        elsif (rising_edge(I_CLK_50MHZ)) then
+            -- Write data to LCD display
+        end if;
+ end process DISPLAY_LCD;
+
  SRAM_COUNTER : process (I_CLK_50MHZ, I_RESET_N)
       begin
           if (I_RESET_N = '1') then
