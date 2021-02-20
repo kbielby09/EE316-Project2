@@ -119,36 +119,6 @@ architecture rtl of top_entity is
         OUT_DATA_ADR =>
     );
 
-    HEX_DISP : quad_hex_driver
-    port map(
-        I_CLK_50MHZ   => I_CLK_50MHZ,
-        I_RESET_N     => I_RESET_N,
-        I_COUNT       => i_keypd_data,
-        I_DATA_ADDR   => i_keypd_addr(7 downto 0),
-        O_DATA_ADDR	  => O_DATA_ADDR,
-        O_HEX_N       => O_HEX_N
-    );
-
-    KEYPAD : key_counter
-    port map(
-        I_CLK_50MHZ => I_CLK_50MHZ,
-        I_SYSTEM_RST => I_RESET_N,
-        I_KEYPAD_ROW_1 => I_KEYPAD_ROW_1,
-        I_KEYPAD_ROW_2 => I_KEYPAD_ROW_2,
-        I_KEYPAD_ROW_3 => I_KEYPAD_ROW_3,
-        I_KEYPAD_ROW_4 => I_KEYPAD_ROW_4,
-        I_KEYPAD_ROW_5 => I_KEYPAD_ROW_5,
-        O_KEYPAD_COL_1 => O_KEYPAD_COL_1,
-        O_KEYPAD_COL_2 => O_KEYPAD_COL_2,
-        O_KEYPAD_COL_3 => O_KEYPAD_COL_3,
-        O_KEYPAD_COL_4 => O_KEYPAD_COL_4,
-        OP_MODE => shift_key_pressed,
-        H_KEY_OUT => h_key_pressed,
-        L_KEY_OUT => l_key_pressed,
-        O_KEY_ADDR => i_keypd_addr,
-        KEY_DATA_OUT => i_keypd_data
-    );
-
     ONE_HZ_CLOCK : process (I_CLK_50MHZ, I_SYSTEM_RST_N)
      begin
       if(I_SYSTEM_RST_N = '1') then
