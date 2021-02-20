@@ -8,10 +8,6 @@ entity top_entity is
         I_RESET_N : in std_logic;
         I_CLK_50MHZ : in std_logic;
 
-        -- hex display outputs
-        O_DATA_ADDR	      : out Std_logic_Vector(13 downto 0);
-        O_HEX_N             : out Std_logic_Vector(27 downto 0)
-
         -- SRAM outputs
         OUT_DATA_ADR : out std_logic_vector(17 downto 0);      -- segments that are to be illuminated for the seven segment hex
 
@@ -24,10 +20,6 @@ entity top_entity is
 
         UB    : out std_logic;
         LB    : out std_logic
-
-        -- Seven-seg display outputs
-        -- HEX_ADDR : out std_logic_vector(7 downto 0);  -- Used for sending the address to the hexadecimal driver
-        -- HEX_DATA : out std_logic_vector(15 downto 0)    -- Used for displaying the data in the SRAM
 
     );
   end top_entity;
@@ -55,40 +47,6 @@ architecture rtl of top_entity is
     );
   end component SRAM_controller;
 
-  component quad_hex_driver is
-      port
-      (
-        I_CLK_50MHZ         : in Std_logic;
-        I_RESET_N           : in Std_logic;
-        I_COUNT             : in Std_logic_Vector(15 downto 0);
-        I_DATA_ADDR         : in Std_logic_Vector(7 downto 0);
-        O_DATA_ADDR	      : out Std_logic_Vector(13 downto 0);
-        O_HEX_N             : out Std_logic_Vector(27 downto 0)
-      );
-  end component quad_hex_driver;
-
-  component key_counter is
-      port(
-          I_CLK_50MHZ    : in  std_logic;
-          I_SYSTEM_RST    : in  std_logic;
-          I_KEYPAD_ROW_1  : in  std_logic;
-          I_KEYPAD_ROW_2  : in  std_logic;
-          I_KEYPAD_ROW_3  : in  std_logic;
-          I_KEYPAD_ROW_4  : in  std_logic;
-          I_KEYPAD_ROW_5  : in  std_logic;
-          O_KEYPAD_COL_1  : out std_logic;
-          O_KEYPAD_COL_2  : out std_logic;
-          O_KEYPAD_COL_3  : out std_logic;
-          O_KEYPAD_COL_4  : out std_logic;
-          OP_MODE         : out std_logic;
-          H_KEY_OUT  : out std_logic;
-          L_KEY_OUT  : out std_logic;
-          O_KEY_ADDR : out std_logic_vector(17 downto 0);
-          KEY_DATA_OUT : out std_logic_vector(15 downto 0)
-      );
-
-  end component key_counter;
-
   component ROM is
   	port
   	(
@@ -103,18 +61,9 @@ architecture rtl of top_entity is
   signal rom_data        : std_logic_vector(15 downto 0);
   signal input_data_addr : std_logic_vector(7 downto 0);
 
-  -- keypad signals
-  signal i_keypd_data : std_logic_vector(15 downto 0) := "0000000000001111";
-  signal i_keypd_addr : std_logic_vector(17 downto 0) := (others => '1');
-  signal h_key_pressed : std_logic;
-  signal l_key_pressed : std_logic;
-  signal shift_key_pressed : std_logic;
-
   -- data signals
   signal sram_data_address : std_logic_vector(17 downto 0);
   signal sram_data         : std_logic_vector(15 downto 0);
-
-  -- seven segment display signals
 
   -- sram Signalssignal trigger_signal : std_logic;
   signal in_data_signal  : std_logic_vector(15 downto 0);
