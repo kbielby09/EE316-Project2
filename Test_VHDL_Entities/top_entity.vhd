@@ -184,24 +184,34 @@ architecture rtl of top_entity is
     --   PWM_OUT     => PWM_OUT
     -- );
 
-    ONE_HZ_CLOCK : process (I_CLK_50MHZ, I_SYSTEM_RST_N)
+    ONE_HZ_CLOCK : process (I_CLK_50MHZ, I_RESET_N)
      begin
-      if(I_SYSTEM_RST_N = '1') then
-         one_hz_counter_signal <= (others => '0');
-      end if;
-
-     if (rising_edge(I_CLK_50MHZ)) then
-         one_hz_counter_signal <= one_hz_counter_signal + 1;
-         if (one_hz_counter_signal = "10111110101111000001111111") then  -- check for 1 Hz clock (count to 50 million)
-             count_enable <= '1';
-             RW <= not(RW);
-             one_hz_counter_signal <= (others => '0');
-         else
-             count_enable <= '0';
+       if(I_RESET_N = '0') then
+           one_hz_counter_signal <= (others => '0');
+           count_enable          <= '0';
+       elsif (rising_edge(I_CLK_50MHZ)) then
+         if (controller_state = INIT ) then
+             if (rom_write = "110000110101000000") then  --101
+                 count_enable <= '1';
+             else
+                 count_enable <= '0';
+             end if;
          end if;
-     end if;
 
- end process ONE_HZ_CLOCK;
+        if (controller_state = OPERATION) then
+            one_hz_counter_signal <= one_hz_counter_signal + 1;
+            if (one_hz_counter_signal = "10111110101111000001111111") then
+                count_enable <= '1';
+                one_hz_counter_signal <= (others => '0');
+            else
+                count_enable <= '0';
+            end if;
+        elsif (controller_state = PROGRAMMING) then
+            count_enable <= l_key_pressed;
+        end if;
+        count_enable_1 <= count_enable;
+     end if;
+    end process ONE_HZ_CLOCK;
 
  -- TODO add functionality for LCD display data
  -- DISPLAY_LCD : process(I_CLK_50MHZ, I_RESET_N)
@@ -286,31 +296,33 @@ architecture rtl of top_entity is
         addr_change <= '0';
         i_rom_addr <= (others => '0');
       elsif (rising_edge(I_CLK_50MHZ)) then
-        sixty_hz_counter <= sixty_hz_counter + 1;
-        one_twenty_hz_counter <= one_twenty_hz_counter + 1;
-        one_khz_counter <= one_khz_counter + 1;
-        addr_change <= '0';
-        case(frequency_state) is
-          when SIXTY_HZ =>
-            if (sixty_hz_counter = "110010110111") then
-              i_rom_addr <= i_rom_addr + 1;
-              addr_change <= '1';
-              sixty_hz_counter <= (others => '0');
-            end if;
+        if (controller_state = GEN) then
+          sixty_hz_counter <= sixty_hz_counter + 1;
+          one_twenty_hz_counter <= one_twenty_hz_counter + 1;
+          one_khz_counter <= one_khz_counter + 1;
+          addr_change <= '0';
+          case(frequency_state) is
+            when SIXTY_HZ =>
+              if (sixty_hz_counter = "110010110111") then
+                i_rom_addr <= i_rom_addr + 1;
+                addr_change <= '1';
+                sixty_hz_counter <= (others => '0');
+              end if;
 
-          when ONE_HUNDRED_TWENTY_HZ =>
-            if (one_twenty_hz_counter = "11001011100") then
-              i_rom_addr <= i_rom_addr + 1;
-              addr_change <= '1';
-              one_twenty_hz_counter <= (others => '0');
-            end if;
-          when ONE_KHZ =>
-            if (one_khz_counter = "11000011") then
-              i_rom_addr <= i_rom_addr + 1;
-              addr_change <= '1';
-              one_khz_counter <= (others => '0');
-            end if;
-        end case;
+            when ONE_HUNDRED_TWENTY_HZ =>
+              if (one_twenty_hz_counter = "11001011100") then
+                i_rom_addr <= i_rom_addr + 1;
+                addr_change <= '1';
+                one_twenty_hz_counter <= (others => '0');
+              end if;
+            when ONE_KHZ =>
+              if (one_khz_counter = "11000011") then
+                i_rom_addr <= i_rom_addr + 1;
+                addr_change <= '1';
+                one_khz_counter <= (others => '0');
+              end if;
+          end case;
+        end if;
       end if;
     end process FREQ_COUNTER;
 
@@ -321,40 +333,42 @@ architecture rtl of top_entity is
                 rom_write         <= (others  => '0');
                 init_data_addr    <= (others  => '1');
             elsif (rising_edge(I_CLK_50MHZ)) then
-                case controller_state is
-                    when INIT =>
-                        RW <= '0';
+              case controller_state is
+                when INIT => -- Initialize SRAM
+                  RW <= '0';
+                  if (init_data_addr /= "000000000100000000") then
+                    sram_data_address <= init_data_addr;
+                    sram_data         <= rom_data;
+                  end if;
+                  rom_write <= rom_write + 1;
+                  if (rom_write = "110000110101000000") then
+                    rom_write <= (others => '0');
+                    init_data_addr <= init_data_addr + 1;
+                    if (init_data_addr = "000000000011111111") then
+                      sram_data <= (others => '0');
+                      sram_data_address <= (others => '0');
+                      rom_initialize <= '1';
+                    end if;
+                  end if;
+                when TEST =>
+                  -- Display data on LCD Display
+                  -- display data on i2c
+                  -- increment sram address
+                when PAUSE =>
+                  -- pause i2c
+                  -- pause LCD
+                  -- pause sram counter
+                when GEN =>
 
-                        if (init_data_addr /= "000000000100000000") then
-                            sram_data_address <= init_data_addr;
-                            sram_data         <= rom_data;
-                        end if;
-
-                        rom_write <= rom_write + 1;
-                        if (rom_write = "110000110101000000") then
-                            rom_write <= (others => '0');
-                            init_data_addr <= init_data_addr + 1;
-
-                            if (init_data_addr = "000000000011111111") then
-                                sram_data <= (others => '0');
-                                sram_data_address <= (others => '0');
-                                rom_initialize <= '1';
-                            end if;
-                         end if;
-
-                    when OPERATION =>
-                        RW <= '1';
-                        if (count_enable = '1') then
-                          case( count_direction ) is
-                              when COUNT_UP =>
-                                  if (sram_data_address(7 downto 0) = "11111111" and counter_paused = '0') then
-                                      sram_data_address <= (others  => '0');
-                                  elsif (counter_paused = '0') then
-                                      sram_data_address <= sram_data_address + 1;
-                                  end if;
-
-                          end case;
-                      end if;
+                    --     RW <= '1';
+                    --     if (count_enable = '1') then
+                    --       case( count_direction ) is
+                    --           when COUNT_UP =>
+                    --               if (sram_data_address(7 downto 0) = "11111111" and counter_paused = '0') then
+                    --                   sram_data_address <= (others  => '0');
+                    --               elsif (counter_paused = '0') then
+                    --                   sram_data_address <= sram_data_address + 1;
+                    --               end if;
 
                 end case;
             end if;
