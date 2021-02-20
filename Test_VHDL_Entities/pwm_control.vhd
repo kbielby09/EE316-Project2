@@ -14,7 +14,8 @@ entity pwm_control is
     I_RESET_N   : in std_logic;
     I_CLK_50MHZ : in std_logic;
 
-    FREQ_SEL    : in std_logic;
+    addr_change : in std_logic; 
+    rom_data     : in std_logic_vector (15 DOWNTO 0);
     PWM_OUT     : out std_logic
   );
 end entity;
@@ -61,35 +62,35 @@ architecture rtl of pwm_control is
   --   );
   -- end component SRAM_controller;
 
-  component ROM is
-  	port
-  	(
-  		address : in STD_LOGIC_VECTOR (7 DOWNTO 0);
-  		clock		: in STD_LOGIC;
-  		q		    : out STD_LOGIC_VECTOR (15 DOWNTO 0)
-  	);
-  end component ROM;
+  -- component ROM is
+  -- 	port
+  -- 	(
+  -- 		address : in STD_LOGIC_VECTOR (7 DOWNTO 0);
+  -- 		clock		: in STD_LOGIC;
+  -- 		q		    : out STD_LOGIC_VECTOR (15 DOWNTO 0)
+  -- 	);
+  -- end component ROM;
 
-  -- Signals to
-  type FREQ_STATE is
-  (
-    SIXTY_HZ,
-    ONE_HUNDRED_TWENTY_HZ,
-    ONE_KHZ
-  );
-
+  -- Signals to control frequency
+  -- type FREQ_STATE is
+  -- (
+  --   SIXTY_HZ,
+  --   ONE_HUNDRED_TWENTY_HZ,
+  --   ONE_KHZ
+  -- );
+  --
   -- signal frequency_state : FREQ_STATE := SIXTY_HZ;
-  signal frequency_state : FREQ_STATE := ONE_KHZ;
+  -- signal frequency_state : FREQ_STATE := ONE_KHZ;
 
   -- Signals to get rom data
-  signal i_rom_addr : unsigned(7 downto 0) := (others => '0');
-  signal rom_data   : std_logic_vector(15 downto 0);
-  signal addr_change : std_logic := '0';
+  -- signal i_rom_addr : unsigned(7 downto 0) := (others => '0');
+  -- signal rom_data   : std_logic_vector(15 downto 0);
+  -- signal addr_change : std_logic := '0';
 
-  -- Signals for frequency counter
-  signal sixty_hz_counter : unsigned(11 downto 0);
-  signal one_twenty_hz_counter : unsigned(21 downto 0);
-  signal one_khz_counter : unsigned(21 downto 0);
+  -- -- Signals for frequency counter
+  -- signal sixty_hz_counter : unsigned(11 downto 0);
+  -- signal one_twenty_hz_counter : unsigned(21 downto 0);
+  -- signal one_khz_counter : unsigned(21 downto 0);
 
   signal pwm_count : unsigned(15 downto 0);
   signal pwm_sig_val : std_logic := '0';
@@ -98,13 +99,13 @@ architecture rtl of pwm_control is
 
 begin
 
-  ROM_INST : ROM
-  port map
-  (
-    address => std_logic_vector(i_rom_addr),
-    clock	  => I_CLK_50MHZ,
-    q		    => rom_data
-  );
+  -- ROM_INST : ROM
+  -- port map
+  -- (
+  --   address => std_logic_vector(i_rom_addr),
+  --   clock	  => I_CLK_50MHZ,
+  --   q		    => rom_data
+  -- );
 
   -- SRAM : SRAM_controller
   -- port map
@@ -127,61 +128,60 @@ begin
   --
   --   );
 
-  FREQ_CHANGE : process(I_CLK_50MHZ, I_RESET_N)
-  begin
-    if (I_RESET_N = '0') then
-      frequency_state <= SIXTY_HZ;
-    elsif (rising_edge(I_CLK_50MHZ)) then
-      if (FREQ_SEL = '0') then
-        case( frequency_state ) is
-          when SIXTY_HZ =>
-            frequency_state <= ONE_HUNDRED_TWENTY_HZ;
-          when ONE_HUNDRED_TWENTY_HZ =>
-            frequency_state <= ONE_KHZ;
-            -- frequency_state <= SIXTY_HZ;
-          when ONE_KHZ =>
-            frequency_state <= SIXTY_HZ;
-        end case;
-      end if;
-    end if;
-  end process FREQ_CHANGE;
+  -- FREQ_CHANGE : process(I_CLK_50MHZ, I_RESET_N)
+  -- begin
+  --   if (I_RESET_N = '0') then
+  --     frequency_state <= SIXTY_HZ;
+  --   elsif (rising_edge(I_CLK_50MHZ)) then
+  --     if (FREQ_SEL = '0') then
+  --       case( frequency_state ) is
+  --         when SIXTY_HZ =>
+  --           frequency_state <= ONE_HUNDRED_TWENTY_HZ;
+  --         when ONE_HUNDRED_TWENTY_HZ =>
+  --           frequency_state <= ONE_KHZ;
+  --         when ONE_KHZ =>
+  --           frequency_state <= SIXTY_HZ;
+  --       end case;
+  --     end if;
+  --   end if;
+  -- end process FREQ_CHANGE;
 
-  FREQ_COUNTER : process(I_CLK_50MHZ, I_RESET_N)
-  begin
-    if (I_RESET_N = '0') then
-      sixty_hz_counter <= (others => '0');
-      one_twenty_hz_counter <= (others => '0');
-      one_khz_counter <= (others => '0');
-      addr_change <= '0';
-      i_rom_addr <= (others => '0');
-    elsif (rising_edge(I_CLK_50MHZ)) then
-      sixty_hz_counter <= sixty_hz_counter + 1;
-      one_twenty_hz_counter <= one_twenty_hz_counter + 1;
-      one_khz_counter <= one_khz_counter + 1;
-      addr_change <= '0';
-      case(frequency_state) is
-        when SIXTY_HZ =>
-          if (sixty_hz_counter = "110010110111") then
-            i_rom_addr <= i_rom_addr + 1;
-            addr_change <= '1';
-            sixty_hz_counter <= (others => '0');
-          end if;
-
-        when ONE_HUNDRED_TWENTY_HZ =>
-          if (one_twenty_hz_counter = "11001011100") then
-            i_rom_addr <= i_rom_addr + 1;
-            addr_change <= '1';
-            one_twenty_hz_counter <= (others => '0');
-          end if;
-        when ONE_KHZ =>
-          if (one_khz_counter = "11000011") then
-            i_rom_addr <= i_rom_addr + 1;
-            addr_change <= '1';
-            one_khz_counter <= (others => '0');
-          end if;
-      end case;
-    end if;
-  end process FREQ_COUNTER;
+  -- FREQ_COUNTER : process(I_CLK_50MHZ, I_RESET_N)
+  -- begin
+  --   if (I_RESET_N = '0') then
+  --     sixty_hz_counter <= (others => '0');
+  --     one_twenty_hz_counter <= (others => '0');
+  --     one_khz_counter <= (others => '0');
+  --     addr_change <= '0';
+  --     i_rom_addr <= (others => '0');
+  --   elsif (rising_edge(I_CLK_50MHZ)) then
+  --     sixty_hz_counter <= sixty_hz_counter + 1;
+  --     one_twenty_hz_counter <= one_twenty_hz_counter + 1;
+  --     one_khz_counter <= one_khz_counter + 1;
+  --     addr_change <= '0';
+  --     case(frequency_state) is
+  --       when SIXTY_HZ =>
+  --         if (sixty_hz_counter = "110010110111") then
+  --           i_rom_addr <= i_rom_addr + 1;
+  --           addr_change <= '1';
+  --           sixty_hz_counter <= (others => '0');
+  --         end if;
+  --
+  --       when ONE_HUNDRED_TWENTY_HZ =>
+  --         if (one_twenty_hz_counter = "11001011100") then
+  --           i_rom_addr <= i_rom_addr + 1;
+  --           addr_change <= '1';
+  --           one_twenty_hz_counter <= (others => '0');
+  --         end if;
+  --       when ONE_KHZ =>
+  --         if (one_khz_counter = "11000011") then
+  --           i_rom_addr <= i_rom_addr + 1;
+  --           addr_change <= '1';
+  --           one_khz_counter <= (others => '0');
+  --         end if;
+  --     end case;
+  --   end if;
+  -- end process FREQ_COUNTER;
 
   PWM_COUNTER : process(I_CLK_50MHZ, I_RESET_N)
   begin
