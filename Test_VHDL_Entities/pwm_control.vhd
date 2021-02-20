@@ -13,9 +13,9 @@ entity pwm_control is
     -- Clock and reset Signals
     I_RESET_N   : in std_logic;
     I_CLK_50MHZ : in std_logic;
-
-    addr_change : in std_logic; 
-    rom_data     : in std_logic_vector (15 DOWNTO 0);
+    frequency_state : std_logic_vector(1 downto 0);
+    addr_change : in std_logic;
+    i_rom_data  : in std_logic_vector (15 DOWNTO 0);
     PWM_OUT     : out std_logic
   );
 end entity;
@@ -79,7 +79,7 @@ architecture rtl of pwm_control is
   --   ONE_KHZ
   -- );
   --
-  -- signal frequency_state : FREQ_STATE := SIXTY_HZ;
+  -- signal frequency_state : std_logic_vector(1 downto 0) := "00";
   -- signal frequency_state : FREQ_STATE := ONE_KHZ;
 
   -- Signals to get rom data
@@ -191,23 +191,23 @@ begin
     elsif (rising_edge(I_CLK_50MHZ)) then
       if (PWM_MODE = '1') then
         pwm_count <= pwm_count + 1;
-        case(frequency_state) is
-          when SIXTY_HZ =>
-            if (pwm_count(10 downto 0) = unsigned(rom_data(15 downto 5))) then
+        case(frequency) is
+          when "00" =>
+            if (pwm_count(10 downto 0) = unsigned(i_rom_data(15 downto 5))) then
               pwm_sig_val <= '1';
             elsif (pwm_count(10 downto 0) = "11111111111" or addr_change = '1') then
               pwm_count <= (others => '0');  -- Reset counter
               pwm_sig_val <= '0';
             end if;
-          when ONE_HUNDRED_TWENTY_HZ =>
-            if (pwm_count(8 downto 0) = unsigned(rom_data(15 downto 7))) then
+          when "01" =>
+            if (pwm_count(8 downto 0) = unsigned(i_rom_data(15 downto 7))) then
               pwm_sig_val <= '1';
             elsif (pwm_count(8 downto 0) = "111111111" or addr_change = '1') then
               pwm_count <= (others => '0');  -- Reset counter
               pwm_sig_val <= '0';
             end if;
-          when ONE_KHZ =>
-            if (pwm_count(5 downto 0) = unsigned(rom_data(15 downto 10))) then
+          when "10" =>
+            if (pwm_count(5 downto 0) = unsigned(i_rom_data(15 downto 10))) then
               pwm_sig_val <= '1';
             elsif (pwm_count(5 downto 0) = "111111" or addr_change = '1') then
               pwm_count <= (others => '0');  -- Reset counter

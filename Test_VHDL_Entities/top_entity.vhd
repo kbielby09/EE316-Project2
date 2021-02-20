@@ -1,6 +1,10 @@
 -- Code your design here
 library IEEE;
 use IEEE.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+--TODO change enable to 3 clock cycles before address change
+-- TODO change address 3 clock cycles before address change
 
 entity top_entity is
     port(
@@ -17,7 +21,7 @@ entity top_entity is
         PWM_OUT : out std_logic;
 
         -- SRAM outputs
-        OUT_DATA_ADR : out std_logic_vector(17 downto 0);      -- segments that are to be illuminated for the seven segment hex
+        SRAM_DATA_ADR : out std_logic_vector(17 downto 0);
         DIO : inout std_logic_vector(15 downto 0);
         CE_N : out std_logic;
         WE_N    : out std_logic;     -- signal for writing to SRAM
@@ -51,13 +55,15 @@ architecture rtl of top_entity is
   );
   end component SRAM_controller;
 
-  -- ROM driver port map
-  ROM_UNIT : ROM
-  port map(
-      address	=> std_logic_vector(init_data_addr(7 downto 0)),
-      clock	  => I_CLK_50MHZ,
-      q	      => rom_data
-  );
+  -- ROM driver (auto generated signature)
+  component ROM is
+  	port
+  	(
+  		address		: in std_logic_vector (7 downto 0);
+  		clock		  : in std_logic  := '1';
+  		q		      : out std_logic_vector (15 downto 0)
+  	);
+  end component ROM;
 
   -- TODO implement
   -- component i2c_master IS
@@ -78,46 +84,53 @@ architecture rtl of top_entity is
   --     scl       : inout  std_logic);                   --serial clock output of i2c bus
   -- end component i2c_master;
 
-  -- component pwm_control is
-  --   port (
-  --     I_RESET_N   : in std_logic;
-  --     I_CLK_50MHZ : in std_logic;
-  --     addr_change : in std_logic;
-  --     rom_data     : in std_logic_vector (15 DOWNTO 0);
-  --     PWM_OUT     : out std_logic
-  --   );
-  -- end component pwm_control;
+  component input_to_ascii is
+    port (
+      -- Clock and reset Signals
+      I_RESET_N   : in std_logic;
+      I_CLK_50MHZ : in std_logic;
+      -- SYS_PAUSE    : in  std_logic;
+      PWM_GEN_MODE : in  std_logic;
+      LCD_RW      : out std_logic;
+      LCD_EN      : out std_logic;
+      LCD_RS      : out std_logic;
+      LCD_DATA    : out std_logic_vector(7 downto 0);
+      LCD_ON      : out std_logic;
+      LCD_BLON    : out std_logic;
+      INPUT_ADDR :  in std_logic_vector(7 downto 0);
+      INPUT_DATA :  in std_logic_vector(15 downto 0)
+
+    );
+  end component;
+
+  component pwm_control is
+    port (
+    I_RESET_N   : in std_logic;
+    I_CLK_50MHZ : in std_logic;
+    frequency : std_logic_vector(1 downto 0);
+    addr_change : in std_logic;
+    i_rom_data  : in std_logic_vector (15 DOWNTO 0);
+    PWM_OUT     : out std_logic
+    );
+  end component pwm_control;
 
   -- ROM initialization signal
   signal rom_initialize     : std_logic := '0';
   signal rom_data           : std_logic_vector(15 downto 0);
+  signal init_data_addr     : unsigned(17 downto 0) := (others => '1');
+  signal rom_write          : unsigned(17 downto 0) := (others => '0');
 
   -- data signals
   signal sram_data_address : unsigned(17 downto 0);
   signal sram_data         : std_logic_vector(15 downto 0);
+  signal sram_addr_change  : std_logic;
 
   -- sram Signals
   signal out_data_signal       : std_logic_vector(15 downto 0);
   signal count_enable          : std_logic;
   signal count_enable_1        : std_logic;
-  signal counter_paused        : std_logic := '1';
   signal one_hz_counter_signal : unsigned(25 downto 0) := (others => '0');
   signal RW                    : std_logic;
-
-  -- data signals
-  signal sram_data_address : std_logic_vector(17 downto 0);
-  signal sram_data         : std_logic_vector(15 downto 0);
-
-  -- sram Signalssignal trigger_signal : std_logic;
-  signal in_data_signal  : std_logic_vector(15 downto 0);
-  signal address_signal : std_logic_vector(7 downto 0);
-  signal count_enable : std_logic;
-  signal one_hz_counter_signal : unsigned(25 downto 0) := "00000000000000000000000000";
-  signal input_data_addr : unsigned(7 downto 0) := (others => '0');
-  signal input_data      : unsigned(15 downto 0);
-  signal RW : std_logic;
-  signal dio_data : std_logic_vector(15 downto 0);
-  signal  : std_logic;
 
   type TYPE_FSTATE is
   (
@@ -138,22 +151,24 @@ architecture rtl of top_entity is
   );
 
   signal frequency_state : FREQ_STATE := SIXTY_HZ;
+  signal frequency_val   : std_logic_vector(1 downto 0) := "00";
 
   -- Signals for frequency counter
   signal sixty_hz_counter : unsigned(11 downto 0);
   signal one_twenty_hz_counter : unsigned(21 downto 0);
   signal one_khz_counter : unsigned(21 downto 0);
 
-  -- signal fstate : type_fstate;
-  -- signal reg_fstate : type_fstate;
+  -- Signals for LCD display
+  signal lcd_state : std_logic_vector(1 downto 0) := "00";
 
   begin
 
+    -- ROM driver port map
     ROM_UNIT : ROM
     port map(
-        address	=> input_data_addr,
-        clock	=> I_CLK_50MHZ,
-        q	=> rom_data
+        address	=> std_logic_vector(init_data_addr(7 downto 0)),
+        clock	  => I_CLK_50MHZ,
+        q	      => rom_data
     );
 
     -- SRAM  controller port map
@@ -175,30 +190,93 @@ architecture rtl of top_entity is
         OUT_DATA_ADR   => SRAM_DATA_ADR
     );
 
-    -- PWM : pwm_control
-    -- port map(
-    --   I_RESET_N   => I_RESET_N,
-    --   I_CLK_50MHZ => I_CLK_50MHZ,
-    --   addr_change => ,
-    --   rom_data    => ,
-    --   PWM_OUT     => PWM_OUT
-    -- );
+    PWM : pwm_control
+    port map(
+      I_RESET_N   => I_RESET_N,
+      I_CLK_50MHZ => I_CLK_50MHZ,
+      frequency   => frequency_val,
+      addr_change => sram_addr_change,
+      i_rom_data  => out_data_signal,
+      PWM_OUT     => PWM_OUT
+    );
+
+    LCD : input_to_ascii
+    port map(
+      I_RESET_N   => I_RESET_N,
+      I_CLK_50MHZ => I_CLK_50MHZ,
+      -- SYS_PAUSE    : in  std_logic;
+      PWM_GEN_MODE => ,
+      LCD_RW      =>
+      LCD_EN      =>
+      LCD_RS      =>
+      LCD_DATA    =>
+      LCD_ON      =>
+      LCD_BLON    =>
+      INPUT_ADDR =>
+      INPUT_DATA =>
+    );
+
+    -- TODO add functionality for LCD display data
+    -- DISPLAY_LCD : process(I_CLK_50MHZ, I_RESET_N)
+    --     begin
+    --        if (I_RESET_N = '1') then
+    --            -- Reset signal and LCD display
+    --        elsif (rising_edge(I_CLK_50MHZ)) then
+    --            -- Write data to LCD display
+    --        end if;
+    -- end process DISPLAY_LCD;
 
     ONE_HZ_CLOCK : process (I_CLK_50MHZ, I_RESET_N)
      begin
        if(I_RESET_N = '0') then
            one_hz_counter_signal <= (others => '0');
            count_enable          <= '0';
+           sixty_hz_counter <= (others => '0');
+           one_twenty_hz_counter <= (others => '0');
+           one_khz_counter <= (others => '0');
        elsif (rising_edge(I_CLK_50MHZ)) then
-         if (controller_state = INIT ) then
-             if (rom_write = "110000110101000000") then  --101
-                 count_enable <= '1';
+
+         if (controller_state = INIT) then
+             count_enable_1 <= count_enable;
+             if (rom_write = "110000110101000000") then
+               count_enable <= '1';
              else
-                 count_enable <= '0';
+               count_enable <= '0';
              end if;
          end if;
 
-        if (controller_state = OPERATION) then
+         -- if (controller_state = GEN) then
+         --   sixty_hz_counter <= sixty_hz_counter + 1;
+         --   one_twenty_hz_counter <= one_twenty_hz_counter + 1;
+         --   one_khz_counter <= one_khz_counter + 1;
+         --   count_enable_1 <= '0';
+         --   sram_addr_change <= '0';
+         --   case(frequency_state) is
+         --     when SIXTY_HZ =>
+         --       if (sixty_hz_counter = "110010110111") then
+         --         sixty_hz_counter <= (others => '0');
+         --       elsif (sixty_hz_counter = "110010110100") then
+         --         count_enable_1 <= '1';
+         --       elsif (sixty_hz_counter = "110010110110") then
+         --         sram_addr_change <= '1';
+         --       end if;
+         --     when ONE_HUNDRED_TWENTY_HZ =>
+         --       -- if (one_twenty_hz_counter = "11001011100") then
+         --       --   one_twenty_hz_counter <= (others => '0');
+         --       -- elsif (one_twenty_hz_counter = "1100101010") then
+         --       --   count_enable_1 <= '1';
+         --       -- end if;
+         --     when ONE_KHZ =>
+         --       -- if (one_khz_counter = "11000011") then
+         --       --   one_khz_counter <= (others => '0');
+         --       -- elsif (one_khz_counter = "11000001") then
+         --       --   count_enable_1 <= '1';
+         --       -- end if;
+         --   end case;
+         -- end if;
+
+        if (controller_state = TEST) then
+            count_enable_1 <= count_enable;
             one_hz_counter_signal <= one_hz_counter_signal + 1;
             if (one_hz_counter_signal = "10111110101111000001111111") then
                 count_enable <= '1';
@@ -206,172 +284,111 @@ architecture rtl of top_entity is
             else
                 count_enable <= '0';
             end if;
-        elsif (controller_state = PROGRAMMING) then
-            count_enable <= l_key_pressed;
         end if;
-        count_enable_1 <= count_enable;
+
      end if;
     end process ONE_HZ_CLOCK;
 
- -- TODO add functionality for LCD display data
- -- DISPLAY_LCD : process(I_CLK_50MHZ, I_RESET_N)
- --     begin
- --        if (I_RESET_N = '1') then
- --            -- Reset signal and LCD display
- --        elsif (rising_edge(I_CLK_50MHZ)) then
- --            -- Write data to LCD display
- --        end if;
- -- end process DISPLAY_LCD;
-
- -- SRAM_COUNTER : process (I_CLK_50MHZ, I_RESET_N)
- --      begin
- --          if (I_RESET_N = '1') then
- --               input_data_addr <= (others => '0');
- --          end if;
- --
- --          if(rising_edge(I_CLK_50MHZ)) then
- --              if(count_enable = '1') then
- --                if(input_data_addr = "00001111") then
- --                    input_data_addr <= (others => '0');
- --                    RW <= not(RW);
- --                else
- --                  if (l_key_pressed = '1') then
- --                      input_data_addr <= input_data_addr - 1;
- --                  else
- --                      input_data_addr <= input_data_addr + 1;
- --                  end if;
- --                end if;
- --              end if;
- --          end if;
- --  end process SRAM_COUNTER;
-
     CONTROL_STATE : process(I_CLK_50MHZ, I_RESET_N)
         begin
-            if (rising_edge(I_CLK_50MHZ)) then
+          if (I_RESET_N = '0') then
+            controller_state <= INIT;
+            frequency_state <= SIXTY_HZ;
+          elsif (rising_edge(I_CLK_50MHZ)) then
               case( controller_state ) is
                 when INIT =>
                   if (rom_initialize = '1' and I_RESET_N = '1') then
+                      -- controller_state <= GEN;
                       controller_state <= TEST;
                   end if;
                 when TEST =>
-                  if (I_RESET_N = '0') then
-                    controller_state <= INIT;
-                  elsif (KEY1 = '0') then
+                  if (KEY1 = '0') then
                     controller_state <= PAUSE;
                   elsif (KEY2 = '0') then
                     controller_state <= GEN;
                   end if;
                 when PAUSE =>
-                  if (I_RESET_N = '0') then
-                    controller_state <= INIT;
-                  elsif (KEY1 = '0') then
+                  if (KEY1 = '0') then
                     controller_state <= TEST;
                   elsif (KEY2 = '0') then
                     controller_state <= GEN;
                   end if;
                 when GEN =>
-                  if (I_RESET_N = '0') then
-                    controller_state <= INIT;
-                    frequency_state <= SIXTY_HZ;
-                  elsif (KEY3 = '0') then
+                  if (KEY3 = '0') then
                     case( frequency_state ) is
                       when SIXTY_HZ =>
                         frequency_state <= ONE_HUNDRED_TWENTY_HZ;
+                        frequency_val <= "01";
                       when ONE_HUNDRED_TWENTY_HZ =>
                         frequency_state <= ONE_KHZ;
+                        frequency_val <= "10";
                       when ONE_KHZ =>
                         frequency_state <= SIXTY_HZ;
+                        frequency_val <= "00";
                     end case;
                   end if;
               end case;
             end if;
     end process CONTROL_STATE;
 
-    FREQ_COUNTER : process(I_CLK_50MHZ, I_RESET_N)
-    begin
-      if (I_RESET_N = '0') then
-        sixty_hz_counter <= (others => '0');
-        one_twenty_hz_counter <= (others => '0');
-        one_khz_counter <= (others => '0');
-        addr_change <= '0';
-        i_rom_addr <= (others => '0');
-      elsif (rising_edge(I_CLK_50MHZ)) then
-        if (controller_state = GEN) then
-          sixty_hz_counter <= sixty_hz_counter + 1;
-          one_twenty_hz_counter <= one_twenty_hz_counter + 1;
-          one_khz_counter <= one_khz_counter + 1;
-          addr_change <= '0';
-          case(frequency_state) is
-            when SIXTY_HZ =>
-              if (sixty_hz_counter = "110010110111") then
-                i_rom_addr <= i_rom_addr + 1;
-                addr_change <= '1';
-                sixty_hz_counter <= (others => '0');
-              end if;
 
-            when ONE_HUNDRED_TWENTY_HZ =>
-              if (one_twenty_hz_counter = "11001011100") then
-                i_rom_addr <= i_rom_addr + 1;
-                addr_change <= '1';
-                one_twenty_hz_counter <= (others => '0');
-              end if;
-            when ONE_KHZ =>
-              if (one_khz_counter = "11000011") then
-                i_rom_addr <= i_rom_addr + 1;
-                addr_change <= '1';
-                one_khz_counter <= (others => '0');
-              end if;
-          end case;
-        end if;
-      end if;
-    end process FREQ_COUNTER;
 
     STATE_FUNCTION : process(I_CLK_50MHZ, I_RESET_N)
         begin
-            if (I_RESET_N = '0') then
-                sram_data         <= (others  => '0');
-                rom_write         <= (others  => '0');
-                init_data_addr    <= (others  => '1');
-            elsif (rising_edge(I_CLK_50MHZ)) then
-              case controller_state is
-                when INIT => -- Initialize SRAM
-                  RW <= '0';
-                  if (init_data_addr /= "000000000100000000") then
-                    sram_data_address <= init_data_addr;
-                    sram_data         <= rom_data;
+          if (I_RESET_N = '0') then
+            sram_data         <= (others  => '0');
+            rom_write         <= (others  => '0');
+            init_data_addr    <= (others  => '1');
+            sram_data_address <= (others  => '0');
+            rom_initialize <= '0';
+            lcd_state <= "00";
+          elsif (rising_edge(I_CLK_50MHZ)) then
+            case controller_state is
+              when INIT => -- Initialize SRAM
+                lcd_state <= "00"
+                RW <= '0';
+                if (init_data_addr /= "000000000100000000") then
+                  sram_data_address <= init_data_addr;
+                  sram_data         <= rom_data;
+                end if;
+                rom_write <= rom_write + 1;
+                if (rom_write = "110000110101000000") then
+                  rom_write <= (others => '0');
+                  init_data_addr <= init_data_addr + 1;
+                  if (init_data_addr = "000000000011111111") then
+                    sram_data <= (others => '0');
+                    sram_data_address <= (others => '0');
+                    rom_initialize <= '1';
                   end if;
-                  rom_write <= rom_write + 1;
-                  if (rom_write = "110000110101000000") then
-                    rom_write <= (others => '0');
-                    init_data_addr <= init_data_addr + 1;
-                    if (init_data_addr = "000000000011111111") then
-                      sram_data <= (others => '0');
-                      sram_data_address <= (others => '0');
-                      rom_initialize <= '1';
-                    end if;
+                end if;
+              when TEST =>
+                lcd_state <= "01";
+                -- Display data on LCD Display
+                -- display data on i2c
+                -- increment sram address
+                -- RW <= '1';
+                -- if (count_enable = '1') then
+                --   if (sram_data_address(7 downto 0) = "11111111" ) then
+                --     sram_data_address <= (others  => '0');
+                --     sram_data_address <= sram_data_address + 1;
+                --   end if;
+                -- end if;
+              when PAUSE =>
+                lcd_state <= "10";
+                -- pause i2c
+                -- pause LCD
+                -- pause sram counter
+              when GEN =>
+                lcd_state <= "11";
+                RW <= '1';
+                if (sixty_hz_counter = "110010110100" ) then --or one_twenty_hz_counter = "1100101010" or one_khz_counter = "11000001") then
+                  sram_data_address <= sram_data_address + 1;
+                  if (sram_data_address(7 downto 0) = "11111111" ) then
+                    sram_data_address <= (others  => '0');
                   end if;
-                when TEST =>
-                  -- Display data on LCD Display
-                  -- display data on i2c
-                  -- increment sram address
-                when PAUSE =>
-                  -- pause i2c
-                  -- pause LCD
-                  -- pause sram counter
-                when GEN =>
-
-                    --     RW <= '1';
-                    --     if (count_enable = '1') then
-                    --       case( count_direction ) is
-                    --           when COUNT_UP =>
-                    --               if (sram_data_address(7 downto 0) = "11111111" and counter_paused = '0') then
-                    --                   sram_data_address <= (others  => '0');
-                    --               elsif (counter_paused = '0') then
-                    --                   sram_data_address <= sram_data_address + 1;
-                    --               end if;
-
-                end case;
-            end if;
+                end if;
+          end case;
+        end if;
     end process STATE_FUNCTION;
 
 
