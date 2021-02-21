@@ -52,14 +52,14 @@ begin
           when "01" =>
             if (pwm_count = unsigned(i_rom_data(15 downto 7))) then
               pwm_sig_val <= '1';
-            elsif (pwm_count(8 downto 0) = "111111111") then
+            elsif (pwm_count = X"1FF") then
               pwm_count <= (others => '0');  -- Reset counter
               pwm_sig_val <= '0';
             end if;
           when "10" =>
             if (pwm_count = unsigned(i_rom_data(15 downto 10))) then
               pwm_sig_val <= '1';
-            elsif (pwm_count(5 downto 0) = "111111") then
+            elsif (pwm_count = X"3F") then
               pwm_count <= (others => '0');  -- Reset counter
               pwm_sig_val <= '0';
             end if;
