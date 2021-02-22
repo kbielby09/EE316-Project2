@@ -56,7 +56,9 @@ architecture rtl of lcd_driver is
     signal next_digit : std_logic_vector(7 downto 0);
     signal init_digit : std_logic_vector(7 downto 0);
 
-    signal command_count : unsigned(1 downto 0) := "00";
+    signal previous_reset : std_logic;
+
+    -- signal command_count : unsigned(1 downto 0) := "00";
 
     type LINE_DIGIT is (
       DIGIT0,
@@ -94,7 +96,8 @@ architecture rtl of lcd_driver is
       DIGIT32
     );
 
-    signal current_digit : LINE_DIGIT := DIGIT1;
+    -- signal current_digit : LINE_DIGIT := DIGIT1;
+    signal current_digit : LINE_DIGIT := DIGIT0;
 
     type INIT_STATE is (
         INIT0,
@@ -114,11 +117,18 @@ architecture rtl of lcd_driver is
       -- Process to count for approximately 230ns
       EN_COUNTER : process(I_CLK_50MHZ, I_RESET_N)
           begin
-            if (I_RESET_N = '0') then
-              enable_counter <= (others => '0');
-              lcd_enable <= '0';
-              previous_enable_value <= '0';
-            elsif (rising_edge(I_CLK_50MHZ)) then
+            -- if (I_RESET_N = '0') then
+            --   enable_counter <= (others => '0');
+            --   lcd_enable <= '0';
+            --   previous_enable_value <= '0';
+          -- elsif (rising_edge(I_CLK_50MHZ)) then
+            if (rising_edge(I_CLK_50MHZ)) then
+              if (I_RESET_N = '0' and previous_reset = '1') then
+                enable_counter <= (others => '0');
+                lcd_enable <= '0';
+                previous_enable_value <= '0';
+              end if;
+
               if (current_digit /= DIGIT32)  then
                 previous_enable_value <= lcd_enable;
                 enable_counter <= enable_counter + 1;
@@ -129,21 +139,26 @@ architecture rtl of lcd_driver is
                 elsif (enable_counter = X"867") then
                   enable_counter <= (others => '0');
                 end if;
-              elsif (current_digit = DIGIT32 and DATA_CHANGE = '1') then
-                previous_enable_value <= '1';
+              elsif (DATA_CHANGE = '1') then
+                previous_enable_value <= '0';
                 lcd_enable <= '0';
+                enable_counter <= (others => '0');
+              -- elsif (current_digit = DIGIT32 and DATA_CHANGE = '1') then
+              --   previous_enable_value <= '1';
+              --   lcd_enable <= '0';
               end if;
             end if;
       end process EN_COUNTER;
 
       INIT_COUNTER : process(I_CLK_50MHZ, I_RESET_N)
         begin
-          if (I_RESET_N = '0') then
-            sixteen_ms_elapse <= '0';
-            five_ms_elapse    <= '0';
-            one_hundred_micro_elapse <= '0';
-            sixteen_ms_count  <= (others => '0');
-          elsif (rising_edge(I_CLK_50MHZ)) then
+          -- if (I_RESET_N = '0') then
+          --   sixteen_ms_elapse <= '0';
+          --   five_ms_elapse    <= '0';
+          --   one_hundred_micro_elapse <= '0';
+          --   sixteen_ms_count  <= (others => '0');
+          -- elsif (rising_edge(I_CLK_50MHZ)) then
+          if (rising_edge(I_CLK_50MHZ)) then
             if (lcd_initialized = '0') then
               sixteen_ms_count        <= sixteen_ms_count + 1;
               forty_four_micro_elapse <= '0';
@@ -179,66 +194,118 @@ architecture rtl of lcd_driver is
       -- Process to change the state of the LCD
       DISPLAY_STATE : process(I_CLK_50MHZ, I_RESET_N)
         begin
-          if (I_RESET_N = '0') then
-            lcd_init_state <= INIT0;
-            lcd_initialized <= '0';
-          elsif (rising_edge(I_CLK_50MHZ)) then
-            case(lcd_init_state) is
-              when INIT0 =>
-                if (sixteen_ms_elapse = '1') then
-                  lcd_init_state <= INIT1;
-                end if;
+          -- if (I_RESET_N = '0') then
+          --   lcd_init_state <= INIT0;
+          --   lcd_initialized <= '0';
+          -- elsif (rising_edge(I_CLK_50MHZ)) then
+          if (rising_edge(I_CLK_50MHZ)) then
+            if (lcd_initialized = '0') then
+              case(lcd_init_state) is
+                when INIT0 =>
+                  if (sixteen_ms_elapse = '1') then
+                    lcd_init_state <= INIT1;
+                  end if;
 
-              when INIT1 =>
-                if (five_ms_elapse = '1') then
-                  lcd_init_state <= INIT2;
-                end if;
+                when INIT1 =>
+                  if (five_ms_elapse = '1') then
+                    lcd_init_state <= INIT2;
+                  end if;
 
-              when INIT2 =>
-                if (one_hundred_micro_elapse = '1') then
-                  lcd_init_state <= INIT3;
-                end if;
+                when INIT2 =>
+                  if (one_hundred_micro_elapse = '1') then
+                    lcd_init_state <= INIT3;
+                  end if;
 
-              when INIT3 =>
-                if (forty_four_micro_elapse = '1') then
-                  lcd_init_state <= INIT4;
-                end if;
+                when INIT3 =>
+                  if (forty_four_micro_elapse = '1') then
+                    lcd_init_state <= INIT4;
+                  end if;
 
-              when INIT4 =>
-                if (forty_four_micro_elapse = '1') then
-                  lcd_init_state <= INIT5;
-                end if;
+                when INIT4 =>
+                  if (forty_four_micro_elapse = '1') then
+                    lcd_init_state <= INIT5;
+                  end if;
 
-              when INIT5 =>
-                if (forty_four_micro_elapse = '1') then
-                  lcd_init_state <= INIT6;
-                end if;
+                when INIT5 =>
+                  if (forty_four_micro_elapse = '1') then
+                    lcd_init_state <= INIT6;
+                  end if;
 
-              when INIT6 =>
-                if (forty_four_micro_elapse = '1') then
-                  lcd_init_state <= INIT7;
-                end if;
+                when INIT6 =>
+                  if (forty_four_micro_elapse = '1') then
+                    lcd_init_state <= INIT7;
+                  end if;
 
-              when INIT7 =>
-                if (forty_four_micro_elapse = '1') then
-                  lcd_initialized   <= '1';
-                end if;
-            end case;
+                when INIT7 =>
+                  if (forty_four_micro_elapse = '1') then
+                    lcd_initialized   <= '1';
+                  end if;
+              end case;
+            end if;
+            -- case(lcd_init_state) is
+            --   when INIT0 =>
+            --     if (sixteen_ms_elapse = '1') then
+            --       lcd_init_state <= INIT1;
+            --     end if;
+            --
+            --   when INIT1 =>
+            --     if (five_ms_elapse = '1') then
+            --       lcd_init_state <= INIT2;
+            --     end if;
+            --
+            --   when INIT2 =>
+            --     if (one_hundred_micro_elapse = '1') then
+            --       lcd_init_state <= INIT3;
+            --     end if;
+            --
+            --   when INIT3 =>
+            --     if (forty_four_micro_elapse = '1') then
+            --       lcd_init_state <= INIT4;
+            --     end if;
+            --
+            --   when INIT4 =>
+            --     if (forty_four_micro_elapse = '1') then
+            --       lcd_init_state <= INIT5;
+            --     end if;
+            --
+            --   when INIT5 =>
+            --     if (forty_four_micro_elapse = '1') then
+            --       lcd_init_state <= INIT6;
+            --     end if;
+            --
+            --   when INIT6 =>
+            --     if (forty_four_micro_elapse = '1') then
+            --       lcd_init_state <= INIT7;
+            --     end if;
+            --
+            --   when INIT7 =>
+            --     if (forty_four_micro_elapse = '1') then
+            --       lcd_initialized   <= '1';
+            --     end if;
+            -- end case;
           end if;
       end process;
 
       DIGIT_STATE : process(I_CLK_50MHZ, I_RESET_N)
         begin
-          if (I_RESET_N = '0') then
-            current_digit <= DIGIT0;
-          elsif (rising_edge(I_CLK_50MHZ)) then
+          -- if (I_RESET_N = '0') then
+          --   current_digit <= DIGIT0;
+          -- elsif (rising_edge(I_CLK_50MHZ)) then
+          if (rising_edge(I_CLK_50MHZ)) then
+            if (lcd_initialized = '1' and DATA_CHANGE = '1') then
+              current_digit <= DIGIT0;
+            end if;
+
+            if (I_RESET_N = '0' and previous_reset = '1') then
+              current_digit <= DIGIT0;
+            end if;
+
             if (lcd_initialized = '1'
                 and lcd_enable = '0'
                 and previous_enable_value = '1') then
-              if (DATA_CHANGE = '1') then
-                current_digit <= DIGIT0;
-              end if;
-
+              -- if (DATA_CHANGE = '1') then
+              --   current_digit <= DIGIT0;
+              -- end if;
               case (current_digit) is
                 when DIGIT0 =>
                   current_digit <= DIGIT1;
@@ -341,27 +408,16 @@ architecture rtl of lcd_driver is
           end if;
       end process;
 
-      CHANGE_LINE : process(I_CLK_50MHZ, I_RESET_N)
-      begin
-        if (I_RESET_N = '0') then
-          command_count <= (others => '0');
-        elsif (rising_edge(I_CLK_50MHZ)) then
-          if (enable_counter = X"867" and current_digit = DIGIT16) then
-            command_count <= command_count + 1;
-          end if;
-        end if;
-      end process;
-
       CURRENT_STATE : process(I_CLK_50MHZ, I_RESET_N)
       begin
-        if (I_RESET_N = '0') then
-        elsif (rising_edge(I_CLK_50MHZ)) then
+        if (rising_edge(I_CLK_50MHZ)) then
           if (lcd_initialized = '1'
               and lcd_enable = '1') then
             case( CURRENT_MODE ) is
               when "00" => -- Initializing state
                 case( current_digit ) is
                   when DIGIT0 =>
+                    next_digit <= X"80"; -- Reset to line 1
                   when DIGIT1 =>
                     next_digit <= "01001001"; -- I
                   when DIGIT2 =>
@@ -430,6 +486,8 @@ architecture rtl of lcd_driver is
                 end case;
               when "01" => -- test state
                 case( current_digit ) is
+                  when DIGIT0 =>
+                    next_digit <= X"80"; -- Reset to line 1
                   when DIGIT1 =>
                     next_digit <= "01010100"; -- T
                   when DIGIT2 =>
@@ -500,6 +558,8 @@ architecture rtl of lcd_driver is
                 end case;
               when "10" => -- Pause state
                 case( current_digit ) is
+                  when DIGIT0 =>
+                    next_digit <= X"80"; -- Reset to line 1
                   when DIGIT1 =>
                     next_digit <= "01010000"; -- P
                   when DIGIT2 =>
@@ -570,6 +630,8 @@ architecture rtl of lcd_driver is
                 end case;
               when "11" => -- PWM Generation State
                 case( current_digit ) is
+                  when DIGIT0 =>
+                    next_digit <= X"80"; -- Reset to line 1
                   when DIGIT1 =>
                     next_digit <= "01010000"; -- P
                   when DIGIT2 =>
@@ -706,7 +768,10 @@ architecture rtl of lcd_driver is
       LCD_DATA <= init_digit when lcd_initialized = '0'
              else next_digit;
       -- LCD_RS <= '0' when lcd_initialized = '0'  else '1';
-      LCD_RS <= '0' when lcd_initialized = '0' or current_digit = DIGIT16  else '1';
+      LCD_RS <= '0' when lcd_initialized = '0'
+                         or current_digit = DIGIT16
+                         or current_digit = DIGIT0 else '1';
+      -- LCD_RS <= '0' when lcd_initialized = '0' or current_digit = DIGIT16 else '1';
       LCD_RW <= '0';
 
 end rtl;

@@ -134,6 +134,13 @@ architecture rtl of top_entity is
   signal one_hz_counter_signal : unsigned(25 downto 0) := (others => '0');
   signal RW                    : std_logic;
 
+  -- Previous key signals
+  signal previous_key0 : std_logic;
+  signal previous_key1 : std_logic;
+  signal previous_key2 : std_logic;
+  signal previous_key3 : std_logic;
+
+
   type TYPE_FSTATE is
   (
     INIT,
@@ -288,32 +295,45 @@ architecture rtl of top_entity is
      end if;
     end process ONE_HZ_CLOCK;
 
+    KEY0_STATE : process(I_CLK_50MHZ)
+    begin
+      if (rising_edge(I_CLK_50MHZ)) then
+        previous_key0 <= I_RESET_N;
+      end if;
+    end process;
+
     CONTROL_STATE : process(I_CLK_50MHZ, I_RESET_N)
         begin
           if (I_RESET_N = '0') then
             controller_state <= INIT;
             frequency_state <= SIXTY_HZ;
           elsif (rising_edge(I_CLK_50MHZ)) then
+            previous_key1 <= KEY1;
+            previous_key2 <= KEY2;
+            previous_key3 <= KEY3;
               case( controller_state ) is
                 when INIT =>
+                  -- if (rom_initialize = '1' and I_RESET_N = '1' and previous_key0 = '0') then
                   if (rom_initialize = '1' and I_RESET_N = '1') then
-                      -- controller_state <= GEN;
                       controller_state <= TEST;
                   end if;
                 when TEST =>
-                  if (KEY1 = '0') then
+                  if (KEY1 = '0' and previous_key1 = '1') then
                     controller_state <= PAUSE;
-                  elsif (KEY2 = '0') then
+                  elsif (KEY2 = '0' and previous_key2 = '1') then
                     controller_state <= GEN;
                   end if;
                 when PAUSE =>
-                  -- if (KEY1 = '0') then
-                  --   controller_state <= TEST;
-                  -- elsif (KEY2 = '0') then
-                  --   controller_state <= GEN;
-                  -- end if;
+                  if (KEY1 = '0' and previous_key1 = '1') then
+                    controller_state <= TEST;
+                  elsif (KEY2 = '0' and previous_key2 = '1') then
+                    controller_state <= GEN;
+                  end if;
                 when GEN =>
-                  if (KEY3 = '0') then
+                  if (KEY2 = '0' and previous_key2 = '1') then
+                    controller_state <= TEST;
+                  end if;
+                  if (KEY3 = '0' and previous_key3 = '1') then
                     case( frequency_state ) is
                       when SIXTY_HZ =>
                         frequency_state <= ONE_HUNDRED_TWENTY_HZ;
@@ -338,12 +358,25 @@ architecture rtl of top_entity is
             init_data_addr    <= (others  => '1');
             sram_data_address <= (others  => '0');
             rom_initialize <= '0';
-            lcd_state <= "00";
+            if (I_RESET_N = '0' and previous_key0 = '1') then
+              lcd_state <= "00";
+            end if;
+
           elsif (rising_edge(I_CLK_50MHZ)) then
+          -- if (rising_edge(I_CLK_50MHZ)) then
+          --   if (I_RESET_N = '0' and previous_key0 = '1') then
+          --     sram_data         <= (others  => '0');
+          --     rom_write         <= (others  => '0');
+          --     init_data_addr    <= (others  => '1');
+          --     sram_data_address <= (others  => '0');
+          --     rom_initialize <= '0';
+          --     lcd_state <= "00";
+          --   end if;
+
             case controller_state is
               when INIT => -- Initialize SRAM
                 lcd_state <= "00";
-                lcd_in_data <= (others => '0');
+                -- lcd_in_data <= (others => '0');
                 RW <= '0';
                 if (init_data_addr /= "000000000100000000") then
                   sram_data_address <= init_data_addr;
@@ -367,14 +400,14 @@ architecture rtl of top_entity is
                 -- increment sram address
                 RW <= '1';
                 if (count_enable = '1') then
+                  sram_data_address <= sram_data_address + 1;
                   if (sram_data_address(7 downto 0) = "11111111" ) then
                     sram_data_address <= (others  => '0');
-                    sram_data_address <= sram_data_address + 1;
                   end if;
                 end if;
               when PAUSE =>
-                -- lcd_state <= "10";
-                lcd_in_data <= (others => '0');
+                lcd_state <= "10";
+                -- lcd_in_data <= (others => '0');
                 -- pause i2c
                 -- pause LCD
                 -- pause sram counter

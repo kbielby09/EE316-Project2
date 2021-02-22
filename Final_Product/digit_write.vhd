@@ -70,6 +70,7 @@ architecture arch of digit_write is
   signal previous_frequency : std_logic_vector(1 downto 0);
 
   signal s_data_change : std_logic := '0';
+  signal previous_reset : std_logic;
 
 begin
 
@@ -102,13 +103,24 @@ begin
 
   DIGIT_COUNT : process(I_CLK_50MHZ, I_RESET_N)
   begin
-    if (I_RESET_N = '0') then
-      previous_mode <= (others => '0');
-      previous_data <= (others => '0');
-    elsif (rising_edge(I_CLK_50MHZ)) then
+    -- if (I_RESET_N = '0') then
+    --   previous_mode <= (others => '0');
+    --   previous_data <= (others => '0');
+    --   -- set s_data_change
+    -- elsif (rising_edge(I_CLK_50MHZ)) then
+    if (rising_edge(I_CLK_50MHZ)) then
       previous_mode <= CURRENT_MODE;
       previous_data <= INPUT_DATA;
       previous_frequency <= FREQUENCY;
+      previous_reset <= I_RESET_N;
+
+      if (I_RESET_N = '0' and previous_reset = '1') then
+          previous_mode <= (others => '0');
+          previous_data <= (others => '0');
+          previous_frequency <= (others => '0');
+          s_data_change <= '1';
+      end if;
+
       if (previous_mode /= CURRENT_MODE
           or previous_data /= INPUT_DATA
           or previous_frequency /= FREQUENCY) then
