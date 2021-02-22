@@ -4,7 +4,7 @@ USE ieee.numeric_std.all;
 
 entity usr_logic is
 port( clk : 	in std_logic;
-		iData:   in std_logic_vector(15 downto 0) := X"abcd";
+		iData:   in std_logic_vector(15 downto 0); -- := X"abcd";
 		
 		oSDA: 	inout Std_logic;
 		oSCL:		inout std_logic);
