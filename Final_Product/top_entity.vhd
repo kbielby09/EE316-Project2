@@ -88,22 +88,22 @@ architecture rtl of top_entity is
   --     scl       : inout  std_logic);                   --serial clock output of i2c bus
   -- end component i2c_master;
 
-  -- component digit_write is
-  --   port (
-  --     I_RESET_N   : in std_logic;
-  --     I_CLK_50MHZ : in std_logic;
-  --     CURRENT_MODE : in  std_logic_vector(1 downto 0);
-  --     FREQUENCY    : in std_logic_vector(1 downto 0);
-  --     LCD_RW      : out std_logic;
-  --     LCD_EN      : out std_logic;
-  --     LCD_RS      : out std_logic;
-  --     LCD_DATA    : out std_logic_vector(7 downto 0);
-  --     LCD_ON      : out std_logic;
-  --     LCD_BLON    : out std_logic;
-  --     INPUT_ADDR :  in std_logic_vector(7 downto 0);
-  --     INPUT_DATA :  in std_logic_vector(15 downto 0)
-  --   );
-  -- end component;
+  component digit_write is
+    port (
+      I_RESET_N   : in std_logic;
+      I_CLK_50MHZ : in std_logic;
+      CURRENT_MODE : in  std_logic_vector(1 downto 0);
+      FREQUENCY    : in std_logic_vector(1 downto 0);
+      LCD_RW      : out std_logic;
+      LCD_EN      : out std_logic;
+      LCD_RS      : out std_logic;
+      LCD_DATA    : out std_logic_vector(7 downto 0);
+      LCD_ON      : out std_logic;
+      LCD_BLON    : out std_logic;
+      INPUT_ADDR :  in std_logic_vector(7 downto 0);
+      INPUT_DATA :  in std_logic_vector(15 downto 0)
+    );
+  end component;
 
   component pwm_control is
     port (
@@ -163,6 +163,7 @@ architecture rtl of top_entity is
 
   -- Signals for LCD display
   signal lcd_state : std_logic_vector(1 downto 0) := "00";
+  signal lcd_in_data : std_logic_vector(15 downto 0);
 
   begin
 
@@ -203,31 +204,22 @@ architecture rtl of top_entity is
       PWM_OUT     => PWM_OUT
     );
 
-    -- LCD : digit_write
-    -- port map(
-    --   I_RESET_N   => I_RESET_N,
-    --   I_CLK_50MHZ => I_CLK_50MHZ,
-    --   CURRENT_MODE => lcd_state,
-    --   FREQUENCY    => frequency_val,
-    --   LCD_RW      => LCD_RW,
-    --   LCD_EN      => LCD_EN,
-    --   LCD_RS      => LCD_RS,
-    --   LCD_DATA    => LCD_DATA,
-    --   LCD_ON      => LCD_ON,
-    --   LCD_BLON    => LCD_BLON,
-    --   INPUT_ADDR => std_logic_vector(sram_data_address(7 downto 0)),
-    --   INPUT_DATA => out_data_signal
-    -- );
+    LCD : digit_write
+    port map(
+      I_RESET_N   => I_RESET_N,
+      I_CLK_50MHZ => I_CLK_50MHZ,
+      CURRENT_MODE => lcd_state,
+      FREQUENCY    => frequency_val,
+      LCD_RW      => LCD_RW,
+      LCD_EN      => LCD_EN,
+      LCD_RS      => LCD_RS,
+      LCD_DATA    => LCD_DATA,
+      LCD_ON      => LCD_ON,
+      LCD_BLON    => LCD_BLON,
+      INPUT_ADDR => std_logic_vector(sram_data_address(7 downto 0)),
+      INPUT_DATA => lcd_in_data
+    );
 
-    -- TODO add functionality for LCD display data
-    -- DISPLAY_LCD : process(I_CLK_50MHZ, I_RESET_N)
-    --     begin
-    --        if (I_RESET_N = '1') then
-    --            -- Reset signal and LCD display
-    --        elsif (rising_edge(I_CLK_50MHZ)) then
-    --            -- Write data to LCD display
-    --        end if;
-    -- end process DISPLAY_LCD;
 
     ONE_HZ_CLOCK : process (I_CLK_50MHZ, I_RESET_N)
      begin
@@ -282,16 +274,16 @@ architecture rtl of top_entity is
            end case;
          end if;
 
-        -- if (controller_state = TEST) then
-        --     count_enable_1 <= count_enable;
-        --     one_hz_counter_signal <= one_hz_counter_signal + 1;
-        --     if (one_hz_counter_signal = "10111110101111000001111111") then
-        --         count_enable <= '1';
-        --         one_hz_counter_signal <= (others => '0');
-        --     else
-        --         count_enable <= '0';
-        --     end if;
-        -- end if;
+        if (controller_state = TEST) then
+            count_enable_1 <= count_enable;
+            one_hz_counter_signal <= one_hz_counter_signal + 1;
+            if (one_hz_counter_signal = "10111110101111000001111111") then
+                count_enable <= '1';
+                one_hz_counter_signal <= (others => '0');
+            else
+                count_enable <= '0';
+            end if;
+        end if;
 
      end if;
     end process ONE_HZ_CLOCK;
@@ -305,15 +297,15 @@ architecture rtl of top_entity is
               case( controller_state ) is
                 when INIT =>
                   if (rom_initialize = '1' and I_RESET_N = '1') then
-                      controller_state <= GEN;
-                      -- controller_state <= TEST;
+                      -- controller_state <= GEN;
+                      controller_state <= TEST;
                   end if;
                 when TEST =>
-                  -- if (KEY1 = '0') then
-                  --   controller_state <= PAUSE;
-                  -- elsif (KEY2 = '0') then
-                  --   controller_state <= GEN;
-                  -- end if;
+                  if (KEY1 = '0') then
+                    controller_state <= PAUSE;
+                  elsif (KEY2 = '0') then
+                    controller_state <= GEN;
+                  end if;
                 when PAUSE =>
                   -- if (KEY1 = '0') then
                   --   controller_state <= TEST;
@@ -338,8 +330,6 @@ architecture rtl of top_entity is
             end if;
     end process CONTROL_STATE;
 
-
-
     STATE_FUNCTION : process(I_CLK_50MHZ, I_RESET_N)
         begin
           if (I_RESET_N = '0') then
@@ -353,6 +343,7 @@ architecture rtl of top_entity is
             case controller_state is
               when INIT => -- Initialize SRAM
                 lcd_state <= "00";
+                lcd_in_data <= (others => '0');
                 RW <= '0';
                 if (init_data_addr /= "000000000100000000") then
                   sram_data_address <= init_data_addr;
@@ -369,24 +360,27 @@ architecture rtl of top_entity is
                   end if;
                 end if;
               when TEST =>
-                -- lcd_state <= "01";
+                lcd_state <= "01";
+                lcd_in_data <= out_data_signal;
                 -- display data on i2c
 
                 -- increment sram address
-                -- RW <= '1';
-                -- if (count_enable = '1') then
-                --   if (sram_data_address(7 downto 0) = "11111111" ) then
-                --     sram_data_address <= (others  => '0');
-                --     sram_data_address <= sram_data_address + 1;
-                --   end if;
-                -- end if;
+                RW <= '1';
+                if (count_enable = '1') then
+                  if (sram_data_address(7 downto 0) = "11111111" ) then
+                    sram_data_address <= (others  => '0');
+                    sram_data_address <= sram_data_address + 1;
+                  end if;
+                end if;
               when PAUSE =>
                 -- lcd_state <= "10";
+                lcd_in_data <= (others => '0');
                 -- pause i2c
                 -- pause LCD
                 -- pause sram counter
               when GEN =>
                 lcd_state <= "11";
+                lcd_in_data <= (others => '0');
                 RW <= '1';
                 if (sram_data_address(7 downto 0) = "11111111" ) then
                   sram_data_address <= (others  => '0');
