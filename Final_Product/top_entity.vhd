@@ -26,6 +26,9 @@ entity top_entity is
         UB    : out std_logic;
         LB    : out std_logic;
 
+        SDA : out std_logic;
+        SCL : out std_logic;
+
         LCD_RW      : out std_logic;
         LCD_EN      : out std_logic;
         LCD_RS      : out std_logic;
@@ -69,24 +72,14 @@ architecture rtl of top_entity is
   	);
   end component ROM;
 
-  -- TODO implement
-  -- component i2c_master IS
-  --   generic(
-  --     input_clk : integer := 100_000_000; --input clock speed from user logic in Hz
-  --     bus_clk   : integer := 400_000);   --speed the i2c bus (scl) will run at in Hz
-  --   port(
-  --     clk       : in     std_logic;                    --system clock
-  --     reset_n   : in     std_logic;                    --active low reset
-  --     ena       : in     std_logic;                    --latch in command
-  --     addr      : in     std_logic_vector(6 DOWNTO 0); --address of target slave
-  --     rw        : in     std_logic;                    --'0' is write, '1' is read
-  --     data_wr   : in     std_logic_vector(7 DOWNTO 0); --data to write to slave
-  --     busy      : out    std_logic;                    --indicates transaction in progress
-  --     data_rd   : out    std_logic_vector(7 DOWNTO 0); --data read from slave
-  --     ack_error : buffer std_logic;                    --flag if improper acknowledge from slave
-  --     sda       : inout  std_logic;                    --serial data output of i2c bus
-  --     scl       : inout  std_logic);                   --serial clock output of i2c bus
-  -- end component i2c_master;
+  component usr_logic is
+  port( clk : 	in std_logic;
+  		iData:   in std_logic_vector(15 downto 0); -- := X"abcd";
+
+  		oSDA: 	inout Std_logic;
+  		oSCL:		inout std_logic);
+
+  end component usr_logic;
 
   component digit_write is
     port (
@@ -225,6 +218,14 @@ architecture rtl of top_entity is
       LCD_BLON    => LCD_BLON,
       INPUT_ADDR => std_logic_vector(sram_data_address(7 downto 0)),
       INPUT_DATA => lcd_in_data
+    );
+
+    I2C : usr_logic
+    port map(
+      clk => I_CLK_50MHZ,
+      iData => sram_data,
+      oSDA => SDA,
+      oSCL => SCL
     );
 
 
