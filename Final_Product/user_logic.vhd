@@ -5,7 +5,7 @@ USE ieee.numeric_std.all;
 entity usr_logic is
 port( clk : 	in std_logic;
 		iData:   in std_logic_vector(15 downto 0); -- := X"abcd";
-		
+
 		oSDA: 	inout Std_logic;
 		oSCL:		inout std_logic);
 
@@ -48,6 +48,10 @@ begin
 
 
 inst_master : i2c_master
+generic map(
+  input_clk => 50_000_000,
+  bus_clk   => 100_000
+)
 port map(
 	clk => clk,
 	reset_n => reset_n,
@@ -62,7 +66,7 @@ port map(
 	scl => oSCL);
 
 process(clk)
-begin 
+begin
 if(clk'EVENT and clk = '1') then
 	case state is
 		when start =>
@@ -86,22 +90,22 @@ if(clk'EVENT and clk = '1') then
 			if byteSel /= 12 then
 				byteSel <= byteSel + 1;
 				state <= write_data;
-				
-			else 
+
+			else
 				byteSel<= 8;
 				i2c_ena <= '0';
 				state <= repeat;
 			end if;
 		end if;
-			
+
 		when repeat =>
 			i2c_ena <= '0';
 			if regData /= iData then
 				Cont <= X"03FFF";
 				state <= start;
-			else	
+			else
 				state <= repeat;
-	
+
 			end if;
 		end case;
 end if;
