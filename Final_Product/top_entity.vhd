@@ -26,8 +26,8 @@ entity top_entity is
         UB    : out std_logic;
         LB    : out std_logic;
 
-        SDA : out std_logic;
-        SCL : out std_logic;
+        SDA : inout std_logic;
+        SCL : inout std_logic;
 
         LCD_RW      : out std_logic;
         LCD_EN      : out std_logic;
@@ -133,6 +133,9 @@ architecture rtl of top_entity is
   signal previous_key2 : std_logic;
   signal previous_key3 : std_logic;
 
+  -- I2C Signals
+  signal i2c_data : std_logic_vector(15 downto 0);
+
 
   type TYPE_FSTATE is
   (
@@ -223,7 +226,7 @@ architecture rtl of top_entity is
     I2C : usr_logic
     port map(
       clk => I_CLK_50MHZ,
-      iData => sram_data,
+      iData => i2c_data,
       oSDA => SDA,
       oSCL => SCL
     );
@@ -396,7 +399,9 @@ architecture rtl of top_entity is
               when TEST =>
                 lcd_state <= "01";
                 lcd_in_data <= out_data_signal;
+
                 -- display data on i2c
+                i2c_data <= out_data_signal;
 
                 -- increment sram address
                 RW <= '1';
