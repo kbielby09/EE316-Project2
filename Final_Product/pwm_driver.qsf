@@ -94,8 +94,8 @@ set_location_assignment PIN_W12 -to DIO[13]
 set_location_assignment PIN_AC9 -to DIO[14]
 set_location_assignment PIN_AC10 -to DIO[15]
 
-set_location_assignment PIN_J22 -to SDA
-set_location_assignment PIN_E25 -to SCL
+set_location_assignment PIN_K26 -to SDA
+set_location_assignment PIN_M23 -to SCL
 
 set_location_assignment PIN_AC11 -to CE_N
 set_location_assignment PIN_AE10 -to WE_N
@@ -171,5 +171,6 @@ set_global_assignment -name VHDL_FILE SRAM_controller.vhd
 set_global_assignment -name VHDL_FILE pwm_control.vhd
 set_global_assignment -name QIP_FILE ROM.qip
 set_global_assignment -name SIGNALTAP_FILE output_files/stp1.stp
+
 set_global_assignment -name SLD_FILE "C:/Product2Final/output_files/stp1_auto_stripped.stp"
 set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top
