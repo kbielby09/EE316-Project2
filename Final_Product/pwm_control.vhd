@@ -45,21 +45,21 @@ begin
           when "00" =>
             if (pwm_count = unsigned(i_rom_data(15 downto 7))) then
               pwm_sig_val <= '1';
-            elsif (pwm_count = X"1FF") then
+            elsif (pwm_count = X"200") then
               pwm_count <= (others => '0');  -- Reset counter
               pwm_sig_val <= '0';
             end if;
           when "01" =>
             if (pwm_count = unsigned(i_rom_data(15 downto 7))) then
               pwm_sig_val <= '1';
-            elsif (pwm_count = X"1FF") then
+            elsif (pwm_count = X"200") then
               pwm_count <= (others => '0');  -- Reset counter
               pwm_sig_val <= '0';
             end if;
           when "10" =>
             if (pwm_count = unsigned(i_rom_data(15 downto 10))) then
               pwm_sig_val <= '1';
-            elsif (pwm_count = X"3F") then
+            elsif (pwm_count = X"40") then
               pwm_count <= (others => '0');  -- Reset counter
               pwm_sig_val <= '0';
             end if;
